@@ -34,9 +34,10 @@ class Game:
 
     def open(self, c):
         opened = (self._range[self.active_grids],c)
-        self.states[opened] = 0
         self.visible_grids[opened] = self.grids[opened]
-        self.active_grids[opened[0]] = self.grids[opened]!=-1
+        non_bombs = self.grids[opened]!=-1
+        self.active_grids[opened[0]] = non_bombs
+        self.states[opened[0][non_bombs], opened[1][non_bombs]] = 0
         self.scores[self.active_grids] -= 1
         self.active_grids[self.scores == 0] = False
         return self.grids[opened]
