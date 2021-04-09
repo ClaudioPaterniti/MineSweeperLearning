@@ -14,4 +14,4 @@ class Player:
         closed_prob = prob+np.logical_not(self.game.states[self.game.active_grids])
         cell = np.argmin(closed_prob, axis=1)
         self.game.open(cell)
-        return prob
+        return prob, cell

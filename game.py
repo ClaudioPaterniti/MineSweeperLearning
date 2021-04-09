@@ -15,6 +15,7 @@ class Game:
         self.scores = np.ones(n, dtype=np.int)*(self.size-mines)
         self.active_grids = np.ones(n, dtype=bool)
         self._range = np.arange(n)
+        self.last_opened = -np.ones(n, dtype=np.int)
 
     def _compute_fields(self):
         fields = np.zeros((self.n,self.size), dtype=np.int)
@@ -34,6 +35,7 @@ class Game:
 
     def open(self, c):
         opened = (self._range[self.active_grids],c)
+        self.last_opened[self.active_grids] = c
         self.visible_grids[opened] = self.grids[opened]
         non_bombs = self.grids[opened]!=-1
         self.active_grids[opened[0]] = non_bombs
@@ -76,15 +78,21 @@ class Game:
         data = self.grids if full_grid else self.visible_grids
         for i, ax in enumerate(axs.ravel()[:self.n]):
             t = data[i].reshape(self.rows, self.columns)
-            colors = map[i].reshape(self.rows, self.columns)
+            colors = map[i].reshape(self.rows, self.columns).astype(np.single).copy()
+            last = self.last_opened[i]
+            if last >= 0:
+                colors[last//self.rows, last%self.columns] = 0.5
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             ax.set_xticks(np.linspace(0.5, self.columns - 1.5, self.columns - 1))
             ax.set_yticks(np.linspace(0.5, self.rows - 1.5, self.rows - 1))
             ax.imshow(colors)
-            ax.grid(color="w", linestyle='-', linewidth=3)
+            ax.grid(color="w", linestyle='-', linewidth=1)
             for i in range(self.rows):
                 for j in range(self.columns):
                     if t[i, j] >= 0:
                         ax.text(j, i, t[i, j], ha="center", va="center", color="w")
+                    elif full_grid:
+                        ax.text(j, i, 'x', ha="center", va="center", color="w")
+                        
         return f, axs
