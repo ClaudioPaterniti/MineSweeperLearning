@@ -10,8 +10,8 @@ class Game:
         self.mines = mines
         self.fields = self._compute_fields()
         self.grids = self._compute_grids()
-        self.states = np.ones((n, self.size), dtype=np.int)
-        self.visible_grids = -self.states
+        self.states = np.zeros((n, self.size), dtype=np.int)
+        self.visible_grids = self.states.copy()
         self.scores = np.ones(n, dtype=np.int)*(self.size-mines)
         self.active_grids = np.ones(n, dtype=bool)
         self._range = np.arange(n)
@@ -39,7 +39,7 @@ class Game:
         self.visible_grids[opened] = self.grids[opened]
         non_bombs = self.grids[opened]!=-1
         self.active_grids[opened[0]] = non_bombs
-        self.states[opened[0][non_bombs], opened[1][non_bombs]] = 0
+        self.states[opened[0][non_bombs], opened[1][non_bombs]] = 1
         self.scores[self.active_grids] -= 1
         self.active_grids[self.scores == 0] = False
         return self.grids[opened]
@@ -52,15 +52,17 @@ class Game:
             c = (self._range[zeros], c[zeros])
         if pad_grid is None:
             first_call = True
-            pad_grid = np.pad(self.grids.reshape(self.n, self.rows, self.columns), [(0,0), (1,1), (1,1)])
-            pad_state = np.pad(self.states.reshape(self.n, self.rows, self.columns), [(0, 0), (1, 1), (1, 1)])
+            pad_grid = np.pad(self.grids.reshape(self.n, self.rows, self.columns),
+                              [(0,0), (1,1), (1,1)],  constant_values=-1)
+            pad_state = np.pad(self.states.reshape(self.n, self.rows, self.columns),
+                               [(0, 0), (1, 1), (1, 1)],  constant_values=-1)
             c = (c[0], np.floor_divide(c[1], self.rows)+1, c[1]%self.columns+1)
         for i in range(-1, 2):
             for j in range(-1, 2):
                 t = (c[0], c[1]+i, c[2]+j)
-                to_open = pad_state[t]==1
+                to_open = pad_state[t]==0
                 t = (t[0][to_open], t[1][to_open], t[2][to_open])
-                pad_state[t] = 0
+                pad_state[t] = 1
                 self.scores[t[0]] -= 1
                 zeros = pad_grid[t] == 0
                 if np.any(zeros):
@@ -68,16 +70,17 @@ class Game:
                     self.open_zero(t, pad_grid, pad_state)
         if first_call:
             self.states = pad_state[:,1:-1,1:-1].reshape(self.n, self.size)
-            self.visible_grids = self.grids*np.logical_not(self.states)-self.states
+            self.visible_grids = self.grids*self.states
             self.active_grids = self.scores > 0
 
     def pyplot_games(self, full_grid = False, map=None):
         f, axs = plt.subplots(2, int(np.ceil(self.n/2)), figsize=(12, 3*self.n))
         if map is None:
-            map = self.states
+            map = np.logical_not(self.states)
         data = self.grids if full_grid else self.visible_grids
         for i, ax in enumerate(axs.ravel()[:self.n]):
             t = data[i].reshape(self.rows, self.columns)
+            state = self.states[i].reshape(self.rows, self.columns)
             colors = map[i].reshape(self.rows, self.columns).astype(np.single).copy()
             last = self.last_opened[i]
             if last >= 0:
@@ -90,9 +93,10 @@ class Game:
             ax.grid(color="w", linestyle='-', linewidth=1)
             for i in range(self.rows):
                 for j in range(self.columns):
-                    if t[i, j] >= 0:
+                    if state[i, j] > 0:
                         ax.text(j, i, t[i, j], ha="center", va="center", color="w")
                     elif full_grid:
-                        ax.text(j, i, 'x', ha="center", va="center", color="w")
+                        s = 'x' if t[i, j] < 0 else t[i,j]
+                        ax.text(j, i, s, ha="center", va="center", color="w")
                         
         return f, axs
