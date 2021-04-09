@@ -76,12 +76,14 @@ class Game:
     def pyplot_games(self, full_grid = False, map=None):
         f, axs = plt.subplots(2, int(np.ceil(self.n/2)), figsize=(12, 3*self.n))
         if map is None:
-            map = np.logical_not(self.states)
+            color = np.logical_not(self.states)
+        else:
+            color = map
         data = self.grids if full_grid else self.visible_grids
         for i, ax in enumerate(axs.ravel()[:self.n]):
             t = data[i].reshape(self.rows, self.columns)
             state = self.states[i].reshape(self.rows, self.columns)
-            colors = map[i].reshape(self.rows, self.columns).astype(np.single).copy()
+            colors = color[i].reshape(self.rows, self.columns).astype(np.single).copy()
             last = self.last_opened[i]
             if last >= 0:
                 colors[last//self.rows, last%self.columns] = 0.5
@@ -91,11 +93,13 @@ class Game:
             ax.set_yticks(np.linspace(0.5, self.rows - 1.5, self.rows - 1))
             ax.imshow(colors)
             ax.grid(color="w", linestyle='-', linewidth=1)
-            for i in range(self.rows):
-                for j in range(self.columns):
-                    if state[i, j] > 0:
-                        ax.text(j, i, t[i, j], ha="center", va="center", color="w")
+            for r in range(self.rows):
+                for c in range(self.columns):
+                    if state[r, c] > 0:
+                        ax.text(c, r, t[r, c], ha="center", va="center", color="w", weight='bold')
                     elif full_grid:
-                        s = 'x' if t[i,j] < 0 else t[i,j]
-                        ax.text(j, i, 'x', ha="center", va="center", color="w")
+                        s = 'x' if t[r,c] < 0 else t[r,c]
+                        ax.text(c, r, s, ha="center", va="center", color="w")
+                    elif map is not None:
+                        ax.text(c, r, "{:.1f}".format(colors[r,c]), ha="center", va="center", color="grey", size='small')
         return f, axs
