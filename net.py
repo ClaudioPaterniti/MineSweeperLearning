@@ -10,12 +10,12 @@ class Net:
         raise NotImplementedError
 
     def fit(self, game, cp_path='../model', cp_rate=100, **train_args):
-        STEPS_PER_EPOCH = game.n / train_args['batch_size']
+        steps_per_epoch = game.n / train_args['batch_size']
         cp_callback = tf.keras.callbacks.ModelCheckpoint(
             filepath=cp_path, 
             verbose=1,
             save_weights_only=True,
-            save_freq= int(cp_rate * STEPS_PER_EPOCH))
+            save_freq= int(cp_rate * steps_per_epoch))
         x,y = self._process_input(game)
         self.model.fit(x, y, callbacks=[cp_callback], **train_args)
 
@@ -61,7 +61,7 @@ class Minesweeper_single_cell_net(Minesweeper_dense_net):
         super().__init__(1, layout)
         self.size = size
 
-    def _extract_squares(self, grids, n, x, y, padc, cells):
+    def _extract_squares(self, grids, n, x, y, cells, padc = 0):
         o = grids.reshape((n, x, y))
         o = np.pad(o, [(0, 0), (self.size, self.size), (self.size, self.size)], constant_values=padc)
         o = o.reshape((n, (x + 2*self.size)*(y + 2*self.size)))
@@ -79,3 +79,20 @@ class Minesweeper_single_cell_net(Minesweeper_dense_net):
 
     def _process_input(self, game, active_only=False):
         to_process = game.active_grids if active_only else np.ones(game.n, dtype=bool)
+        n, x, y, cells = len(to_process), game.columns, game.rows, np.logical_not(game.states[to_process])
+        values = self._extract_squares(game.visible_grids[to_process], n, x, y, cells)
+        states = self._extract_squares(game.states[to_process], n, x, y, cells)
+        inside = self._extract_squares(np.ones_like(cells, dtype=int), n, x, y, cells)
+        x = np.concatenate((values,states,inside), axis=1)
+        y = game.fields[to_process][cells]
+        return x,y
+
+    def fit(self, game, cp_path='../model', cp_rate=100, **train_args):
+        steps_per_epoch = np.count_nonzero(np.logical_not(game.states)) / train_args['batch_size']
+        cp_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=cp_path,
+            verbose=1,
+            save_weights_only=True,
+            save_freq= int(cp_rate * steps_per_epoch))
+        x,y = self._process_input(game)
+        self.model.fit(x, y, callbacks=[cp_callback], **train_args)

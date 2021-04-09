@@ -36,6 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--path', type=str, default='..\model')
     parser.add_argument('--name', type=str, default='net')
     parser.add_argument('--warm_start', type=str, default=None)
+    parser.add_argument('--window', type=int, default=1)
 
     args = parser.parse_args()
     game_args = {'rows': args.rows,
@@ -46,10 +47,14 @@ if __name__ == '__main__':
                   'epochs': args.first_phase_epochs}
     if args.net == 'dense':
         arch =  net.Minesweeper_dense_net
+        size = args.rows*args.columns
+    elif args.net == 'single':
+        arch = net.Minesweeper_single_cell_net
+        size = args.window
     if args.warm_start:
         model = arch.load(args.path, args.warm_start)
     else:
-        model = arch(args.rows*args.columns, tuple(args.layout))
+        model = arch(size, tuple(args.layout))
         first_phase(model, args.first_phase_n, game_args, train_args)
         model.save(args.path, args.name+'_1p')   
     train_args['epochs'] = args.epochs

@@ -96,7 +96,6 @@ class Game:
                     if state[i, j] > 0:
                         ax.text(j, i, t[i, j], ha="center", va="center", color="w")
                     elif full_grid:
-                        s = 'x' if t[i, j] < 0 else t[i,j]
-                        ax.text(j, i, s, ha="center", va="center", color="w")
-                        
+                        s = 'x' if t[i,j] < 0 else t[i,j]
+                        ax.text(j, i, 'x', ha="center", va="center", color="w")
         return f, axs
