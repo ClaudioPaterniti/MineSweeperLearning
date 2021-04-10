@@ -12,8 +12,10 @@ class Game:
         self.grids = self._compute_grids()
         self.states = np.zeros((n, self.size), dtype=np.int)
         self.visible_grids = self.states.copy()
-        self.scores = np.ones(n, dtype=np.int)*(self.size-mines)
+        self.scores = np.full(n, self.size-mines, dtype=np.int)
+        self.mines_scores = np.full(n, self.mines, dtype=np.int)
         self.active_grids = np.ones(n, dtype=bool)
+        self.won = np.zeros(n, dtype=bool)
         self._range = np.arange(n)
         self.last_opened = -np.ones(n, dtype=np.int)
 
@@ -41,7 +43,8 @@ class Game:
         self.active_grids[opened[0]] = non_bombs
         self.states[opened[0][non_bombs], opened[1][non_bombs]] = 1
         self.scores[self.active_grids] -= 1
-        self.active_grids[self.scores == 0] = False
+        self.won = self.scores == 0
+        self.active_grids[self.won] = False
         return self.grids[opened]
 
     def open_zero(self, c=None, pad_grid=None, pad_state=None):
@@ -72,13 +75,14 @@ class Game:
             self.states = pad_state[:,1:-1,1:-1].reshape(self.n, self.size)
             self.visible_grids = self.grids*self.states
             self.active_grids = self.scores > 0
+            self.won = self.scores == 0
 
-    def pyplot_games(self, full_grid = False, map=None):
+    def pyplot_games(self, full_grid = False, cmap=None):
         f, axs = plt.subplots(2, int(np.ceil(self.n/2)), figsize=(12, 3*self.n))
-        if map is None:
+        if cmap is None:
             color = np.logical_not(self.states)
         else:
-            color = map
+            color = cmap
         data = self.grids if full_grid else self.visible_grids
         for i, ax in enumerate(axs.ravel()[:self.n]):
             t = data[i].reshape(self.rows, self.columns)
@@ -100,6 +104,6 @@ class Game:
                     elif full_grid:
                         s = 'x' if t[r,c] < 0 else t[r,c]
                         ax.text(c, r, s, ha="center", va="center", color="w")
-                    elif map is not None:
+                    elif cmap is not None:
                         ax.text(c, r, "{:.1f}".format(colors[r,c]), ha="center", va="center", color="grey", size='small')
         return f, axs

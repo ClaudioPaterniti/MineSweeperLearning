@@ -11,7 +11,7 @@ class Player:
 
     def step(self):
         prob = self.model.predict(self.game, active_only=True)
-        closed_prob = prob+np.logical_not(self.game.states[self.game.active_grids])
+        closed_prob = prob+self.game.states[self.game.active_grids]
         cell = np.argmin(closed_prob, axis=1)
         self.game.open(cell)
         return prob, cell

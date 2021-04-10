@@ -9,19 +9,20 @@ class Net:
     def _process_input(self, game, active_only):
         raise NotImplementedError
 
-    def fit(self, game, cp_path='../model', cp_rate=100, **train_args):
-        steps_per_epoch = game.n / train_args['batch_size']
+    def fit(self, game, cp_path='../model/checkpoint/', cp_rate=100, **train_args):
+        x, y = self._process_input(game)
+        steps_per_epoch = len(x) / train_args['batch_size']
         cp_callback = tf.keras.callbacks.ModelCheckpoint(
             filepath=cp_path, 
             verbose=1,
             save_weights_only=True,
             save_freq= int(cp_rate * steps_per_epoch))
-        x,y = self._process_input(game)
         self.model.fit(x, y, callbacks=[cp_callback], **train_args)
 
     def predict(self, game, active_only = False):
         x,_ = self._process_input(game, active_only)
         return self.model.predict(x)
+
 
     def save(self, path, name):
         if not os.path.exists(path):
@@ -57,42 +58,42 @@ class Minesweeper_dense_net(Net):
         return x,y
 
 class Minesweeper_single_cell_net(Minesweeper_dense_net):
-    def __init__(self, size, layout):
+    def __init__(self, window_radius, layout, flags = False):
         super().__init__(1, layout)
-        self.size = size
+        self.w = window_radius
+        self.flags = flags
 
     def _extract_squares(self, grids, n, x, y, cells, padc = 0):
         o = grids.reshape((n, x, y))
-        o = np.pad(o, [(0, 0), (self.size, self.size), (self.size, self.size)], constant_values=padc)
-        o = o.reshape((n, (x + 2*self.size)*(y + 2*self.size)))
+        o = np.pad(o, [(0, 0), (self.w, self.w), (self.w, self.w)], constant_values=padc)
+        o = o.reshape((n, (x + 2*self.w)*(y + 2*self.w)))
         rows, cols = np.nonzero(cells)
-        side = 2*self.size + 1
-        _x = x + 2*self.size
-        cols += (_x + 1)*self.size + (cols//x)*2*self.size
+        side = 2*self.w + 1
+        _x = x + 2*self.w
+        cols += (_x + 1)*self.w + (cols//x)*2*self.w
         square = np.concatenate([np.arange(side) + i*_x for i in range(side)])
         rem_center = np.ones(side**2, dtype=int)
         rem_center[side**2//2] = 0
-        square = square[rem_center.astype(bool)] - (_x + 1)*self.size
+        square = square[rem_center.astype(bool)] - (_x + 1)*self.w
         cols = square + cols.reshape((-1, 1))
         rows = rows.reshape((-1, 1))
         return o[rows, cols]
 
-    def _process_input(self, game, active_only=False):
-        to_process = game.active_grids if active_only else np.ones(game.n, dtype=bool)
-        n, x, y, cells = len(to_process), game.columns, game.rows, np.logical_not(game.states[to_process])
-        values = self._extract_squares(game.visible_grids[to_process], n, x, y, cells)
-        states = self._extract_squares(game.states[to_process], n, x, y, cells)
-        inside = self._extract_squares(np.ones_like(cells, dtype=int), n, x, y, cells)
-        x = np.concatenate((values,states,inside), axis=1)
-        y = game.fields[to_process][cells]
+    def _process_input(self, game, mask):
+        n, x, y, cells = np.count_nonzero(mask), game.columns, game.rows, np.logical_not(game.states[mask])
+        values = self._extract_squares(game.visible_grids[mask], n, x, y, cells)
+        states = self._extract_squares(game.states[mask], n, x, y, cells)
+        inside = self._extract_squares(np.ones_like(cells, dtype=np.int), n, x, y, cells)
+        x = np.concatenate((values, states, inside, game.scores[mask]), axis=1)
+        if self.flags:
+            x = np.concatenate((x, game.mines_scores[mask]), axis=1)
+        y = game.fields[mask][cells]
         return x,y
 
-    def fit(self, game, cp_path='../model', cp_rate=100, **train_args):
-        steps_per_epoch = np.count_nonzero(np.logical_not(game.states)) / train_args['batch_size']
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(
-            filepath=cp_path,
-            verbose=1,
-            save_weights_only=True,
-            save_freq= int(cp_rate * steps_per_epoch))
-        x,y = self._process_input(game)
-        self.model.fit(x, y, callbacks=[cp_callback], **train_args)
+    def predict(self, game, active_only=False):
+        mask = game.active_grids if active_only else np.ones(game.n, dtype=bool)
+        x, _ = self._process_input(game, mask)
+        pred = self.model.predict(x)
+        p = np.zeros_like(game.grids[mask], dtype=np.float)
+        p[np.logical_not(game.states[mask])] = pred.flatten()
+        return p
