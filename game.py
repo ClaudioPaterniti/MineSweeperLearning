@@ -17,7 +17,7 @@ class Game:
         self.active_grids = np.ones(n, dtype=bool)
         self.won = np.zeros(n, dtype=bool)
         self._range = np.arange(n)
-        self.last_opened = -np.ones(n, dtype=np.int)
+        self.last_opened = np.full(n, -1, dtype=np.int)
 
     def _compute_fields(self):
         fields = np.zeros((self.n,self.size), dtype=np.int)
@@ -77,20 +77,26 @@ class Game:
             self.active_grids = self.scores > 0
             self.won = self.scores == 0
 
-    def pyplot_games(self, full_grid = False, cmap=None):
-        f, axs = plt.subplots(2, int(np.ceil(self.n/2)), figsize=(12, 3*self.n))
+    def pyplot_games(self, full_grid = False, cmap=None, cols = 2):
+        rows = int(np.ceil(self.n/cols))
+        f, axs = plt.subplots(rows, cols, figsize=(12, 12*rows/cols))
         if cmap is None:
             color = np.logical_not(self.states)
         else:
             color = cmap
         data = self.grids if full_grid else self.visible_grids
-        for i, ax in enumerate(axs.ravel()[:self.n]):
+        for i, ax in enumerate(axs.ravel()):
+            if i>= self.n:
+                f.delaxes(ax)
+                continue
             t = data[i].reshape(self.rows, self.columns)
             state = self.states[i].reshape(self.rows, self.columns)
             colors = color[i].reshape(self.rows, self.columns).astype(np.single).copy()
             last = self.last_opened[i]
             if last >= 0:
-                colors[last//self.rows, last%self.columns] = 0.5
+                #colors[last//self.rows, last%self.columns] = 0.5
+                rect = plt.Rectangle((last%self.columns - .5, last//self.rows - .5), 1, 1, fill=False, color="red", linewidth=4)
+                ax.add_patch(rect)
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             ax.set_xticks(np.linspace(0.5, self.columns - 1.5, self.columns - 1))

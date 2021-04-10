@@ -6,11 +6,11 @@ import numpy as np
 
 class Net:
 
-    def _process_input(self, game, active_only):
+    def _process_input(self, game, mask):
         raise NotImplementedError
 
     def fit(self, game, cp_path='../model/checkpoint/', cp_rate=100, **train_args):
-        x, y = self._process_input(game)
+        x, y = self._process_input(game, np.ones(game.n, dtype=bool))
         steps_per_epoch = len(x) / train_args['batch_size']
         cp_callback = tf.keras.callbacks.ModelCheckpoint(
             filepath=cp_path, 
@@ -20,7 +20,8 @@ class Net:
         self.model.fit(x, y, callbacks=[cp_callback], **train_args)
 
     def predict(self, game, active_only = False):
-        x,_ = self._process_input(game, active_only)
+        mask = game.active_grids if active_only else np.ones(game.n, dtype=bool)
+        x, _ = self._process_input(game, mask)
         return self.model.predict(x)
 
 
@@ -51,10 +52,9 @@ class Minesweeper_dense_net(Net):
         self.model.add(tf.keras.layers.Dense(self.output_size, activation='sigmoid', name='output'))
         self.model.compile(loss=tf.keras.losses.BinaryCrossentropy(), optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001))
 
-    def _process_input(self, game, active_only=False):
-        to_process = game.active_grids if active_only else np.ones(game.n, dtype=bool)
-        x = np.concatenate((game.visible_grids[to_process], game.states[to_process]), axis=1)
-        y = game.fields[to_process]
+    def _process_input(self, game, mask):
+        x = np.concatenate((game.visible_grids[mask], game.states[mask]), axis=1)
+        y = game.fields[mask]
         return x,y
 
 class Minesweeper_single_cell_net(Minesweeper_dense_net):
@@ -84,9 +84,11 @@ class Minesweeper_single_cell_net(Minesweeper_dense_net):
         values = self._extract_squares(game.visible_grids[mask], n, x, y, cells)
         states = self._extract_squares(game.states[mask], n, x, y, cells)
         inside = self._extract_squares(np.ones_like(cells, dtype=np.int), n, x, y, cells)
-        x = np.concatenate((values, states, inside, game.scores[mask]), axis=1)
+        scores = np.repeat(game.scores[mask], game.scores[mask])
+        x = np.concatenate((values, states, inside, ), axis=1)
         if self.flags:
-            x = np.concatenate((x, game.mines_scores[mask]), axis=1)
+            mine_scores = np.repeat(game.mines_scores[mask], game.mines_scores[mask])
+            x = np.concatenate((x, mine_scores), axis=1)
         y = game.fields[mask][cells]
         return x,y
 
