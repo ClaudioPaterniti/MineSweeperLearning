@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm
 
 class Game:
     def __init__(self, rows=9, columns=9, mines=10, n=1):
@@ -41,16 +42,20 @@ class Game:
         grids[self.fields.astype(bool)] = -1
         return grids
 
-    def open(self, c):
+    def open(self, c, flags = False):
         opened = (self._range[self.active_grids],c)
         self.last_opened[self.active_grids] = c
-        bombs = self.grids[opened] == -1
-        non_bombs = np.logical_not(bombs)
-        self.active_grids[opened[0]] = non_bombs
-        self.states[opened[0][non_bombs], opened[1][non_bombs]] = 1
+        wrong = np.logical_xor(flags, self.fields[opened].astype(bool))
+        correct = np.logical_not(wrong)
+        self.active_grids[opened[0]] = correct
+        self.states[opened[0][correct], opened[1][correct]] = 1
         self.visible_grids[opened] = self.grids[opened]
-        self.visible_grids[opened[0][bombs], opened[1][bombs]] = 0
-        self.scores[self.active_grids] -= 1
+        self.visible_grids[opened[0][wrong], opened[1][wrong]] = 0
+        if np.any(flags):
+            self.scores[self.active_grids] -= np.logical_not(flags[correct])
+            self.mines_scores[self.active_grids] -= flags[correct]
+        else:
+            self.scores[self.active_grids] -= 1
         self.won = self.scores == 0
         self.active_grids[self.won] = False
         return self.grids[opened]
@@ -102,21 +107,24 @@ class Game:
             t = data[i].reshape(self.rows, self.columns)
             state = self.states[i].reshape(self.rows, self.columns)
             colors = color[i].reshape(self.rows, self.columns).astype(np.single).copy()
+            colors = np.ma.masked_where(self.visible_grids[i].reshape(self.rows, self.columns) == -1, colors)
             last = self.last_opened[i]
             if last >= 0:
-                #colors[last//self.rows, last%self.columns] = 0.5
                 rect = plt.Rectangle((last%self.columns - .5, last//self.rows - .5), 1, 1, fill=False, color="red", linewidth=4)
                 ax.add_patch(rect)
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             ax.set_xticks(np.linspace(0.5, self.columns - 1.5, self.columns - 1))
             ax.set_yticks(np.linspace(0.5, self.rows - 1.5, self.rows - 1))
-            ax.imshow(colors)
+            cmap = matplotlib.cm.viridis
+            cmap.set_bad(color='red')
+            ax.imshow(colors, cmap=cmap)
             ax.grid(color="w", linestyle='-', linewidth=1)
             for r in range(self.rows):
                 for c in range(self.columns):
                     if state[r, c] > 0:
-                        ax.text(c, r, t[r, c], ha="center", va="center", color="w", weight='bold')
+                        s = '#' if t[r, c] < 0 else t[r, c]
+                        ax.text(c, r, s, ha="center", va="center", color="w", weight='bold')
                     elif full_grid:
                         s = 'x' if t[r,c] < 0 else t[r,c]
                         ax.text(c, r, s, ha="center", va="center", color="w")

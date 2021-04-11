@@ -25,12 +25,12 @@ def first_phase(model, games, train_args):
         game.open_zero()
     model.fit(games, **train_args)
 
-def second_phase(model, games, phases, train_args):
+def second_phase(model, player, games, phases, train_args):
     for i in range(phases):
         print('Starting phase ', i, 'of ', phases)
         for game in games:
-            p = player.Player(model, game)
-            p.play()
+            game.open_zero()
+            player.play(game)
         model.fit(games, **train_args)
         for game in games:
             game.reset()
@@ -55,6 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr_start' ,type=int, default=20)
     parser.add_argument('--mines_feature', action='store_true')
     parser.add_argument('--first_phase', action='store_true')
+    parser.add_argument('--flags', type = float, default = None)
 
 
     args = parser.parse_args()
@@ -86,5 +87,9 @@ if __name__ == '__main__':
     for game in games:
         game.reset(args.n//len(args.rows))
     model.model.optimizer.lr.assign(0.01)
-    second_phase(model, games, args.phases, train_args)
+    if args.flags is not None:
+        plyr = player.Flags_player(model, player.threshold_policy(args.flags))
+    else:
+        plyr = player.Player(model)
+    second_phase(model, plyr, games, args.phases, train_args)
     model.save(args.path, args.name)

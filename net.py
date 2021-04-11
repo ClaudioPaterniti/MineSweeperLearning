@@ -88,12 +88,12 @@ class Minesweeper_single_cell_net(Minesweeper_dense_net):
         values = self._extract_squares(game.visible_grids[mask], n, x, y, cells)
         states = self._extract_squares(game.states[mask], n, x, y, cells)
         inside = self._extract_squares(np.ones_like(cells, dtype=np.int), n, x, y, cells)
-        score_rep = game.scores[mask]+game.mines
-        scores = np.repeat(score_rep, score_rep).reshape((-1,1))
-        x = np.concatenate((values, states, inside, scores), axis=1)
+        x = np.concatenate((values, states, inside), axis=1)
         if self.mines_feature:
+            score_rep = game.scores[mask]+game.mines_scores[mask]
+            scores = np.repeat(score_rep, score_rep).reshape((-1,1))
             mine_scores = np.repeat(game.mines_scores[mask], score_rep).reshape((-1,1))
-            x = np.concatenate((x, mine_scores), axis=1)
+            x = np.concatenate((x, scores, mine_scores), axis=1)
         y = game.fields[mask][cells]
         return x,y
 
