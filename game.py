@@ -8,16 +8,22 @@ class Game:
         self.columns = columns
         self.size = rows*columns
         self.mines = mines
+        self._range = np.arange(n)
+        self.reset()
+
+    def reset(self,  n = None):
+        if n is not None:
+            self.n = n
+            self._range = np.arange(n)
         self.fields = self._compute_fields()
         self.grids = self._compute_grids()
-        self.states = np.zeros((n, self.size), dtype=np.int)
+        self.states = np.zeros((self.n, self.size), dtype=np.int)
         self.visible_grids = self.states.copy()
-        self.scores = np.full(n, self.size-mines, dtype=np.int)
-        self.mines_scores = np.full(n, self.mines, dtype=np.int)
-        self.active_grids = np.ones(n, dtype=bool)
-        self.won = np.zeros(n, dtype=bool)
-        self._range = np.arange(n)
-        self.last_opened = np.full(n, -1, dtype=np.int)
+        self.scores = np.full(self.n, self.size - self.mines, dtype=np.int)
+        self.mines_scores = np.full(self.n, self.mines, dtype=np.int)
+        self.active_grids = np.ones(self.n, dtype=bool)
+        self.won = np.zeros(self.n, dtype=bool)
+        self.last_opened = np.full(self.n, -1, dtype=np.int)
 
     def _compute_fields(self):
         fields = np.zeros((self.n,self.size), dtype=np.int)
@@ -38,10 +44,12 @@ class Game:
     def open(self, c):
         opened = (self._range[self.active_grids],c)
         self.last_opened[self.active_grids] = c
-        self.visible_grids[opened] = self.grids[opened]
-        non_bombs = self.grids[opened]!=-1
+        bombs = self.grids[opened] == -1
+        non_bombs = np.logical_not(bombs)
         self.active_grids[opened[0]] = non_bombs
         self.states[opened[0][non_bombs], opened[1][non_bombs]] = 1
+        self.visible_grids[opened] = self.grids[opened]
+        self.visible_grids[opened[0][bombs], opened[1][bombs]] = 0
         self.scores[self.active_grids] -= 1
         self.won = self.scores == 0
         self.active_grids[self.won] = False
@@ -79,7 +87,9 @@ class Game:
 
     def pyplot_games(self, full_grid = False, cmap=None, cols = 2):
         rows = int(np.ceil(self.n/cols))
-        f, axs = plt.subplots(rows, cols, figsize=(12, 12*rows/cols))
+        f, axs = plt.subplots(rows, cols, figsize=(18, 12*rows/cols))
+        if rows*cols == 1:
+            axs = np.array([axs])
         if cmap is None:
             color = np.logical_not(self.states)
         else:
@@ -111,5 +121,5 @@ class Game:
                         s = 'x' if t[r,c] < 0 else t[r,c]
                         ax.text(c, r, s, ha="center", va="center", color="w")
                     elif cmap is not None:
-                        ax.text(c, r, "{:.1f}".format(colors[r,c]), ha="center", va="center", color="grey", size='small')
+                        ax.text(c, r, "{:.2f}".format(colors[r,c]), ha="center", va="center", color="grey", size='small')
         return f, axs
