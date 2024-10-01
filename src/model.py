@@ -18,9 +18,8 @@ class MineSweeperDataset(Dataset):
         return self.games.n
 
     def __getitem__(self, idx):
-        numbers, closed, flags = self.games.visible_numbers()[idx], (1-self.games.open_cells[idx]), self.games.flags[idx]
-        # closed cells start at -1, +10*closed set them to 9, all flag are closed and are thus set to 10
-        sample = numbers + 10*closed + flags
+        
+        sample = self.games.game_state()[idx]
         mines_n = self.games.mines_n
         target = self.games.mines[idx]
 
@@ -48,12 +47,13 @@ class OnHotEncodingTransform:
 class PatchMLPModel:
     def __init__(self, patch_radius: int):
         self.pad = patch_radius
+        self.transform = OnHotEncodingTransform(patch_radius)
         self.model = PatchMLP(
             in_channels=12,
             out_channels=1,
             patch_size=2*patch_radius+1,
             padding=0,
-            layer_units=[250]*6,
+            layer_units=[200]*4,
             out_activation=nn.Sigmoid()
         )
         self.bce = nn.BCELoss()
@@ -68,6 +68,7 @@ class PatchMLPModel:
     
     def train(self, dataloader, optimizer, device):
         self.model.train()
+        self.model.to(device)
         train_loss = 0
         for batch, (x, y) in enumerate(dataloader):
             x, y = x.to(device), y.to(device)
@@ -87,6 +88,7 @@ class PatchMLPModel:
 
     def test(self, dataloader, device):
         self.model.eval()
+        self.model.to(device)
         test_loss = 0
         with torch.no_grad():
             for X, y in dataloader:
