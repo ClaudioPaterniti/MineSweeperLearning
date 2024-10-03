@@ -66,7 +66,7 @@ class OnHotEncodingTransform:
         return x, y, w
     
 class PatchMLPModel:
-    def __init__(self, patch_radius: int, device: str = 'cpu'):
+    def __init__(self, patch_radius: int, layers: list[int] = [200]*4, device: str = 'cpu'):
         self.pad = patch_radius
         self.device = device
         self.transform = OnHotEncodingTransform(patch_radius)
@@ -75,7 +75,7 @@ class PatchMLPModel:
             out_channels=1,
             patch_size=2*patch_radius+1,
             padding=0,
-            layer_units=[200]*4,
+            layer_units=layers,
             out_activation=nn.Sigmoid()
         )
         self.train_loss_log = []
@@ -89,8 +89,8 @@ class PatchMLPModel:
         self.model.eval()
         self.model.to(self.device)
         x, _, _ = self.transform(game_state)
-        x.to(self.device)
-        return self.model(x).view(game_state.shape).cpu().detach().numpy()
+        x = x.to(self.device)
+        return self.model(x).view(game_state.shape).detach().cpu().numpy()
     
     def train(self, dataloader, optimizer):
         self.model.train()
