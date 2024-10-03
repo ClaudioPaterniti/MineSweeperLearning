@@ -38,8 +38,6 @@ class Game:
         g.last_flagged = self.last_flagged[key]
         return g
 
-
-
     def _compute_number_cells(self): # compute the minesweeper numbers from the mine placements
         grids = np.zeros_like(self.mines)
         pad = np.pad(self.mines, [(0,0), (1,1), (1,1)])
