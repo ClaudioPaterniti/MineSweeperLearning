@@ -13,12 +13,8 @@ class Player:
             self.step(game)
             i += 1
 
-    def step(self, game):
-        prob = self.model.predict(game, active_only=True)
-        closed_prob = prob+game.states[game.active_grids]
-        cells = np.argmin(closed_prob, axis=1)
-        game.open(cells)
-        return prob, cells
+    def step(self, game: Game):
+        raise NotImplementedError()
 
 class ThresholdPlayer(Player):
     def __init__(self, model, open_thresh: int=0.01, flag_thresh: int=0.99):
@@ -28,9 +24,9 @@ class ThresholdPlayer(Player):
 
     def step(self, game: Game):
         p = self.model(game.game_state(active_only=True))
-        full_cells = game.open_cells[game.active_games] + game.flags[game.active_games]
-        p_for_min = p + full_cells
-        p_for_max = p - full_cells
+        filled = game.open_cells[game.active_games] + game.flags[game.active_games]
+        p_for_min = p + filled # set already filled cells > 1 to get meaningful low probabilties
+        p_for_max = p - filled # set already filled cells < 0 to get meaningful high probabilities
         to_open = p_for_min < self.open_tresh # open cells below open threshold
         to_flag = p_for_max > self.flag_tresh # flag cells above flag threshold
         no_moves = np.logical_not(np.any(to_open, axis=(1,2)) | np.any(to_flag, axis=(1,2))) # games without new open of flags
