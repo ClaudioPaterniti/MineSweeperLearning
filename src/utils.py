@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, Normalize as ColorNormalize
+from matplotlib.axes import Axes
 
 def random_binary_matrices(shape: tuple[int, int, int], ones: int) -> np.ndarray:
     """
@@ -28,3 +29,39 @@ def vanishing_colormap(cmap):
     # create a colormap object
     map_object = LinearSegmentedColormap.from_list(name='reds_alpha',colors=color_array)
     return map_object
+
+def pyplot_game(          
+            state: np.ndarray, mine_probs: np.ndarray=None,
+            hightlighted: np.ndarray = None, cmap = plt.cm.viridis) -> Axes:
+        """plot game state
+        :param state: (h,w) full grid with -1 for mines, or state with 9 for closed and 10 for flags
+        :param mine_probs: (h,w) ndarray of mine probabilities to plot,
+        :param hightlighted: binary (h,w) of cells to highlight
+        """
+        def style(x: int, p: float = None) -> dict:
+            if x < 0: return {'s': 'x',  'weight': 'bold'}
+            if x < 9: return {'s': x,  'weight': 'bold'}
+            if x == 9: return {'s': '{:.1f}'.format(p) if p else ''}
+            if x == 10: return {'s': '?',  'weight': 'bold'}
+        rows, columns = state.shape
+        open_cells = state < 9
+        flags = state == 10
+        color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
+              else open_cells*0.2+flags
+        plt.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
+        ax = plt.gca()
+        for r in range(rows):
+            for c in range(columns):
+                    v, p = state[r, c], mine_probs[r, c] if mine_probs is not None else None
+                    ax.text(c, r, ha="center", va="center", color="w", **style(v, p))
+
+        if hightlighted is not None:                    
+            ax.matshow(open_cells, cmap=vanishing_colormap(plt.cm.Reds))
+
+        ax.grid(color="w", linestyle='-', linewidth=1)
+        ax.set_xticks(np.arange(columns)-0.5)
+        ax.set_yticks(np.arange(rows)-0.5)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        plt.show()
+        return ax

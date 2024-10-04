@@ -11,17 +11,18 @@ class ConvResBlock(nn.Module):
         self.conv_in = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding)
         self.conv_out = nn.Conv2d(out_channels, out_channels, kernel_size, padding=padding)
         self.conv_skip = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding) if in_channels != out_channels else nn.Identity()
-        self.norm_out =  nn.BatchNorm2d(out_channels)
-        self.norm_in = nn.BatchNorm2d(in_channels)
+        self.skip_norm = nn.BatchNorm2d(out_channels) if in_channels != out_channels else nn.Identity()
+        self.norm =  nn.BatchNorm2d(out_channels)
         self.activation = nn.ReLU()
 
     def forward(self, x):
-        x = self.norm_in(x)
         h = self.conv_in(x)
+        h = self.norm(h)
         h = self.activation(h)
-        h = self.norm_out(h)
         h = self.conv_out(h)
+        h = self.norm(h)
         skip = self.conv_skip(x)
+        skip = self.skip_norm(skip)
         return self.activation(h + skip)
     
 
@@ -35,6 +36,8 @@ class PatchMLP(nn.Module):
         super().__init__()
         in_units = layer_units[0]
         self.conv_in = nn.Conv2d(in_channels, in_units, patch_size, padding=padding)
+        self.norm_in = nn.BatchNorm2d(in_units)
+        self.relu = nn.ReLU()
         mid = [nn.Identity()]
         for units in layer_units[1:]:
             mid.append(ConvResBlock(in_units, units, True))
@@ -45,7 +48,8 @@ class PatchMLP(nn.Module):
 
     def forward(self, x):
         h = self.conv_in(x)
-        h = nn.ReLU()(h)
+        h = self.norm_in(h)
+        h = self.relu(h)
         h = self.res_stack(h)
         h = self.conv_out(h)
         return self.out_activation(h)

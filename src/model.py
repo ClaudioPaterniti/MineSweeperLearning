@@ -1,6 +1,9 @@
+import os
 import torch
 import numpy as np
+import json
 
+from typing import Self
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 
@@ -69,6 +72,7 @@ class PatchMLPModel:
     def __init__(self, patch_radius: int, layers: list[int] = [200]*4, device: str = 'cpu'):
         self.pad = patch_radius
         self.device = device
+        self.layers = layers
         self.transform = OnHotEncodingTransform(patch_radius)
         self.model = PatchMLP(
             in_channels=12,
@@ -125,6 +129,19 @@ class PatchMLPModel:
 
     def save(self, path: str):
         torch.save(self.model.state_dict(), path)
+        filename, _ = os.path.splitext(path)
+        meta = {
+            'patchRadius': self.pad,
+            'layers': self.layers
+        }
+        with open(filename+'.json', 'w+') as f:
+            json.dump(meta, f, indent=4)
     
-    def load(self, path: str):
-        self.model.load_state_dict(torch.load(path, weights_only=True, map_location=self.device))
+    @staticmethod
+    def load(path: str, device: str) -> Self:        
+        filename, _ = os.path.splitext(path)
+        with open(filename+'.json', 'r') as f:
+            meta = json.load(f)
+        model = PatchMLPModel(meta['patchRadius'], meta['layers'], device)
+        model.model.load_state_dict(torch.load(path, weights_only=True, map_location=device))
+        return model

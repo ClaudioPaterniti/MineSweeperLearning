@@ -121,22 +121,5 @@ class Game:
             if x == 10: return {'s': '?',  'weight': 'bold'}
 
         state = self.numbers[idx] if full_grid else self.game_state()[idx]
-        color = (mine_probs+0.2)*(1-self.open_cells[idx]) if mine_probs is not None\
-              else self.open_cells[idx]*0.2+self.flags[idx]
-        plt.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
-        ax = plt.gca()
-        for r in range(self.rows):
-            for c in range(self.columns):
-                    v, p = state[r, c], mine_probs[r, c] if mine_probs is not None else None
-                    ax.text(c, r, ha="center", va="center", color="w", **style(v, p))
-
-        highlights = self.losing_moves()[idx] if hightlight_losing_only else self.last_opened[idx] + self.last_flagged[idx]
-        ax.matshow(highlights, cmap=utils.vanishing_colormap(plt.cm.Reds))
-
-        ax.grid(color="w", linestyle='-', linewidth=1)
-        ax.set_xticks(np.arange(self.columns)-0.5)
-        ax.set_yticks(np.arange(self.rows)-0.5)
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        plt.show()
-        return ax
+        highlighted = self.losing_moves()[idx] if hightlight_losing_only else self.last_opened[idx] + self.last_flagged[idx]
+        return utils.pyplot_game(state, mine_probs, highlighted, cmap)
