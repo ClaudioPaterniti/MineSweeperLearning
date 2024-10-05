@@ -47,7 +47,7 @@ def pyplot_game(
         open_cells = state < 9
         flags = state == 10
         color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
-              else open_cells*0.2+flags
+              else (1-open_cells)*0.2+flags
         plt.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
         ax = plt.gca()
         for r in range(rows):

@@ -6,10 +6,13 @@ class Player:
     def __init__(self, model):
        self.model = model
 
-    def play(self, game: Game):
-        i = 1
-        while np.any(game.active_games):
-            print(f'step {i}')
+    def play(self, game: Game, turns: int = np.inf):
+        """
+        :param turns: how many turns to play, default: np.inf = until all games are lost or won
+        """
+        i = 0
+        while i < turns and np.any(game.active_games):
+            print(f'step {i+1}')
             self.step(game)
             i += 1
 
