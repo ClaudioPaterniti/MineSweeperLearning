@@ -57,7 +57,7 @@ class Game:
     
     def scores(self, final_only: bool = False):
         """return percentage of non-mine cells opened"""
-        mask = np.logical_not(self.active_games) if final_only else True
+        mask = np.logical_not(self.active_games) if final_only else np.full(self.n, True)
         to_open = self.size - self.mines[mask].sum(axis=(1,2))
         return self.open_cells[mask].sum(axis=(1,2))/to_open
     

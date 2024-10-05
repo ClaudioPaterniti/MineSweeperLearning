@@ -29,6 +29,7 @@ class MaskedConv(nn.Conv2d):
     Partial convolution with some input masked in each patch
     """
     def __init__(self, patch_mask: torch.Tensor = None, *args, **kwargs):
+        """:param patch_mask: (h,w) or (c,h,w) binary tensor"""
         super().__init__(*args, **kwargs)
         self.register_buffer(
             'kernel_input_mask', patch_mask.to(dtype=self.weight.dtype), persistent=False)

@@ -25,7 +25,7 @@ class ThresholdPlayer(Player):
         self.flag_tresh = flag_thresh
 
     def step(self, game: Game):
-        p = self.model(game.game_state(active_only=True))
+        p = self.model(game.game_state(active_only=True), game.mines_n)
         filled = game.open_cells[game.active_games] + game.flags[game.active_games]
         p_for_min = p + filled # set already filled cells > 1 to get meaningful low probabilties
         p_for_max = p - filled # set already filled cells < 0 to get meaningful high probabilities
