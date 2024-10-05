@@ -3,11 +3,11 @@ Learning to play Minesweepr with Neural Networks
 
 ## Game
 
-The repo provide pyhton utils to generate, plot and play minesweeper games through code.
+The repo provides pyhton utils to generate, plot and play minesweeper games through code.
 
 ## Models
 
-The repo also contain various models definition and their trained weights, and general utilities to train minesweeper models.
+The repo also contains various model implementations, their trained weights, and general utilities to train minesweeper models.
 
 See simple examples of the api use in [test.ipynb](test.ipynb)
 
