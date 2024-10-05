@@ -39,10 +39,10 @@ def pyplot_game(
         :param hightlighted: binary (h,w) of cells to highlight
         """
         def style(x: int, p: float = None) -> dict:
-            if x < 0: return {'s': 'x',  'weight': 'bold'}
-            if x < 9: return {'s': x,  'weight': 'bold'}
-            if x == 9: return {'s': '{:.1f}'.format(p) if p else ''}
-            if x == 10: return {'s': '?',  'weight': 'bold'}
+            if x < 0: return {'s': 'x',  'weight': 'bold', 'color': "r"}
+            if x < 9: return {'s': x,  'weight': 'bold', 'color': "w"}
+            if x == 9: return {'s': '{:.1f}'.format(p) if p else '', 'color': "black"}
+            if x == 10: return {'s': '?',  'weight': 'bold', 'color': "r"}
         rows, columns = state.shape
         open_cells = state < 9
         flags = state == 10
@@ -53,7 +53,7 @@ def pyplot_game(
         for r in range(rows):
             for c in range(columns):
                     v, p = state[r, c], mine_probs[r, c] if mine_probs is not None else None
-                    ax.text(c, r, ha="center", va="center", color="w", **style(v, p))
+                    ax.text(c, r, ha="center", va="center", **style(v, p))
 
         if hightlighted is not None:                    
             ax.matshow(hightlighted, cmap=vanishing_colormap(plt.cm.Reds))
