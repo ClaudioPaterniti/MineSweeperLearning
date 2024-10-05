@@ -55,6 +55,12 @@ class Game:
         state = self.numbers*self.open_cells + 9*(1-self.open_cells) + self.flags
         return state[self.active_games] if active_only else state
     
+    def scores(self, final_only: bool = False):
+        """return percentage of non-mine cells opened"""
+        mask = np.logical_not(self.active_games) if final_only else True
+        to_open = self.size - self.mines[mask].sum(axis=(1,2))
+        return self.open_cells[mask].sum(axis=(1,2))/to_open
+    
     def open(self, cells: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]:
         """Open cells in active games, return bool array (n) where False means a mine has been open
         

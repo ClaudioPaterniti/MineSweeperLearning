@@ -12,7 +12,6 @@ class Player:
         """
         i = 0
         while i < turns and np.any(game.active_games):
-            print(f'step {i+1}')
             self.step(game)
             i += 1
 

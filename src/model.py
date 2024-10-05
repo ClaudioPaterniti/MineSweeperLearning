@@ -12,11 +12,15 @@ from .modules.modules import PatchMLP
 
 class MineSweeperDataset(Dataset):
 
-    def __init__(self, games: Game, transform=None, losing_moves_weight: int = 3):
+    def __init__(self, 
+                 games: Game, transform=None,
+                 mines_weight: int = 1,
+                 losing_moves_weight: int = 1,):
         self.transform = transform
         self.target = games.mines
         self.states = games.game_state()
         self.losing_moves_weight = losing_moves_weight
+        self.mines_weight = mines_weight
         # weight ignore the loss on open cells and flags, and multiply loss on last losing moves
         self.weights = self._compute_weights(games)
         self.rng = np.random.default_rng()
@@ -30,7 +34,9 @@ class MineSweeperDataset(Dataset):
         self.weights = np.concatenate((self.weights[shuffle[:-games.n]], weights))
 
     def _compute_weights(self, games: Game) -> np.ndarray:
-        return games.losing_moves()*(self.losing_moves_weight-1)+1
+        return (1
+                + games.mines*(self.mines_weight-1)
+                + games.losing_moves()*(self.losing_moves_weight-1))
 
     def __len__(self):
         return self.target.shape[0]
