@@ -43,9 +43,11 @@ def pyplot_game(
             if x < 9: return {'s': x,  'weight': 'bold', 'color': "w"}
             if x == 9: return {'s': '{:.1f}'.format(p) if p else '', 'color': "black"}
             if x == 10: return {'s': '?',  'weight': 'bold', 'color': "r"}
+
         rows, columns = state.shape
         open_cells = state < 9
         flags = state == 10
+        # colors shifted of 0.2 to distinguish open cells
         color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
               else (1-open_cells)*0.2+flags
         plt.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))

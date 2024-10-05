@@ -61,6 +61,9 @@ class Game:
         to_open = self.size - self.mines[mask].sum(axis=(1,2))
         return self.open_cells[mask].sum(axis=(1,2))/to_open
     
+    def win_rate(self):
+        return self.won.sum()/(1-self.active_games).sum()
+    
     def open(self, cells: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]:
         """Open cells in active games, return bool array (n) where False means a mine has been open
         
@@ -120,12 +123,6 @@ class Game:
         :param mine_probs: (h,w) ndarray of mine probabilities to plot,
         :param hightlight_losing_only if true highlights only losing moves, otherwise highlights all last moves
         """
-        def style(x: int, p: float = None) -> dict:
-            if x < 0: return {'s': 'x',  'weight': 'bold'}
-            if x < 9: return {'s': x,  'weight': 'bold'}
-            if x == 9: return {'s': '{:.1f}'.format(p) if p else ''}
-            if x == 10: return {'s': '?',  'weight': 'bold'}
-
         state = self.numbers[idx] if full_grid else self.game_state()[idx]
         highlighted = self.losing_moves()[idx] if hightlight_losing_only else self.last_opened[idx] + self.last_flagged[idx]
         return utils.pyplot_game(state, mine_probs, highlighted, cmap)
