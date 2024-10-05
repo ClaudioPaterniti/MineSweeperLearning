@@ -56,7 +56,7 @@ def pyplot_game(
                     ax.text(c, r, ha="center", va="center", color="w", **style(v, p))
 
         if hightlighted is not None:                    
-            ax.matshow(open_cells, cmap=vanishing_colormap(plt.cm.Reds))
+            ax.matshow(hightlighted, cmap=vanishing_colormap(plt.cm.Reds))
 
         ax.grid(color="w", linestyle='-', linewidth=1)
         ax.set_xticks(np.arange(columns)-0.5)

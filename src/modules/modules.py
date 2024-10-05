@@ -11,20 +11,33 @@ class ConvResBlock(nn.Module):
         self.conv_in = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding)
         self.conv_out = nn.Conv2d(out_channels, out_channels, kernel_size, padding=padding)
         self.conv_skip = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding) if in_channels != out_channels else nn.Identity()
-        self.skip_norm = nn.BatchNorm2d(out_channels) if in_channels != out_channels else nn.Identity()
-        self.norm =  nn.BatchNorm2d(out_channels)
+        self.norm_out =  nn.BatchNorm2d(out_channels)
+        self.norm_in = nn.BatchNorm2d(in_channels)
         self.activation = nn.ReLU()
 
     def forward(self, x):
+        x = self.norm_in(x)
         h = self.conv_in(x)
-        h = self.norm(h)
         h = self.activation(h)
+        h = self.norm_out(h)
         h = self.conv_out(h)
-        h = self.norm(h)
         skip = self.conv_skip(x)
-        skip = self.skip_norm(skip)
         return self.activation(h + skip)
     
+class MaskedConv(nn.Conv2d):
+    """
+    Partial convolution with some input masked in each patch
+    """
+    def __init__(self, patch_mask: torch.Tensor = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.register_buffer(
+            'kernel_input_mask', patch_mask.to(dtype=self.weight.dtype), persistent=False)
+
+    def forward(self, x):
+        if self.kernel_input_mask is not None:
+            with torch.no_grad():
+                self.weight *= self.kernel_input_mask
+        return super().forward(x)
 
 class PatchMLP(nn.Module):
     """
@@ -32,10 +45,12 @@ class PatchMLP(nn.Module):
     """
     def __init__(self,
                  in_channels, out_channels, patch_size: int, padding: int,
-                 layer_units: list[int], out_activation: nn.Module = None):
+                 layer_units: list[int], input_mask: torch.Tensor = None,
+                 out_activation: nn.Module = None):
+        """:param input_mask: (h,w) binary mask to mask some input in the patch"""
         super().__init__()
         in_units = layer_units[0]
-        self.conv_in = nn.Conv2d(in_channels, in_units, patch_size, padding=padding)
+        self.conv_in = MaskedConv(input_mask, in_channels, in_units, patch_size, padding=padding)
         self.norm_in = nn.BatchNorm2d(in_units)
         self.relu = nn.ReLU()
         mid = [nn.Identity()]

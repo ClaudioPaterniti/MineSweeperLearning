@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import json
 
-from typing import Self
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 
@@ -25,15 +24,13 @@ class MineSweeperDataset(Dataset):
     # weights should be recomputed after training on them
     def mix(self, games: Game):
         shuffle = self.rng.permutation(self.target.shape[0])
-        self.target = np.concat((self.target[shuffle[:-games.n]], games.mines))
-        self.states = np.concat((self.states[shuffle[:-games.n]], games.game_state()))
+        self.target = np.concatenate((self.target[shuffle[:-games.n]], games.mines))
+        self.states = np.concatenate((self.states[shuffle[:-games.n]], games.game_state()))
         weights = self._compute_weights(games)
-        self.weights = np.concat((self.weights[shuffle[:-games.n]], weights))
+        self.weights = np.concatenate((self.weights[shuffle[:-games.n]], weights))
 
     def _compute_weights(self, games: Game) -> np.ndarray:
-        return (
-            games.losing_moves()*(self.losing_moves_weight-1)
-            + 1 - games.open_cells - games.flags)
+        return games.losing_moves()*(self.losing_moves_weight-1)+1
 
     def __len__(self):
         return self.target.shape[0]
@@ -71,15 +68,19 @@ class OnHotEncodingTransform:
 class PatchMLPModel:
     def __init__(self, patch_radius: int, layers: list[int] = [200]*4, device: str = 'cpu'):
         self.pad = patch_radius
+        self.kernel = 2*patch_radius+1
         self.device = device
         self.layers = layers
         self.transform = OnHotEncodingTransform(patch_radius)
+        input_mask = torch.ones((self.kernel, self.kernel))
+        input_mask[patch_radius, patch_radius] = 0 # mask the value of the cell to predict
         self.model = PatchMLP(
             in_channels=12,
             out_channels=1,
-            patch_size=2*patch_radius+1,
+            patch_size= self.kernel,
             padding=0,
             layer_units=layers,
+            input_mask = input_mask,
             out_activation=nn.Sigmoid()
         )
         self.train_loss_log = []
@@ -138,7 +139,7 @@ class PatchMLPModel:
             json.dump(meta, f, indent=4)
     
     @staticmethod
-    def load(path: str, device: str) -> Self:        
+    def load(path: str, device: str):        
         filename, _ = os.path.splitext(path)
         with open(filename+'.json', 'r') as f:
             meta = json.load(f)
