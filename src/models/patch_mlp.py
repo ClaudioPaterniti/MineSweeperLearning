@@ -6,7 +6,7 @@ import json
 from torch import nn
 
 from .modules import PatchMLP
-from ..dataset.dataloader import *
+from ..dataloader.dataloader import *
     
 class PatchMLPModel:
     def __init__(self,
@@ -42,12 +42,19 @@ class PatchMLPModel:
         squeezed = pred.view(pred.size(0), pred.size(2), pred.size(3))
         return nn.functional.binary_cross_entropy(squeezed, target, weight=weights)
     
-    def __call__(self, game_state: np.ndarray, tot_mines: np.ndarray= None) -> np.ndarray:
+    def __call__(self,
+            game_state: np.ndarray, tot_mines: np.ndarray= None, batch_size: int = 1000) -> np.ndarray:
         self.model.eval()
         self.model.to(self.device)
-        x, _, _ = self.transform(game_state, tot_mines)
-        x = x.to(self.device)
-        return self.model(x).view(game_state.shape).detach().cpu().numpy()
+        out = []
+        scalar_mines = np.isscalar(tot_mines) or tot_mines is None
+        for b in range(0, len(game_state), batch_size):
+            state = game_state[b:b+batch_size]
+            mines = tot_mines if scalar_mines else tot_mines[b:b+batch_size]
+            x, _, _ = self.transform(state, mines)
+            x = x.to(self.device)
+            out.append(self.model(x).view(game_state.shape).detach().cpu().numpy())
+        return np.concatenate(out)
     
     def train(self, dataloader, optimizer):
         self.model.train()
