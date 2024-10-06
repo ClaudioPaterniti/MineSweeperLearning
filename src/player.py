@@ -10,6 +10,7 @@ class Player:
         """
         :param turns: how many turns to play, default: np.inf = until all games are lost or won
         """
+        turns = np.inf if turns < 0 else turns
         i = 0
         while i < turns and np.any(game.active_games):
             self.step(game)
@@ -25,6 +26,9 @@ class ThresholdPlayer(Player):
         self.flag_tresh = flag_thresh
 
     def step(self, game: Game):
+        if not np.any(game.active_games):
+            print('no active games')
+            return None, None, None
         p = self.model(game.game_state(active_only=True), game.mines_n)
         filled = game.open_cells[game.active_games] + game.flags[game.active_games]
         p_for_min = p + filled # set already filled cells > 1 to get meaningful low probabilties

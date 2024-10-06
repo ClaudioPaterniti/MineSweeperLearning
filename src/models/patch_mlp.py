@@ -48,12 +48,12 @@ class PatchMLPModel:
         self.model.to(self.device)
         out = []
         scalar_mines = np.isscalar(tot_mines) or tot_mines is None
-        for b in range(0, len(game_state), batch_size):
+        for b in range(0, game_state.shape[0], batch_size):
             state = game_state[b:b+batch_size]
             mines = tot_mines if scalar_mines else tot_mines[b:b+batch_size]
             x, _, _ = self.transform(state, mines)
             x = x.to(self.device)
-            out.append(self.model(x).view(game_state.shape).detach().cpu().numpy())
+            out.append(self.model(x).view(state.shape).detach().cpu().numpy())
         return np.concatenate(out)
     
     def train(self, dataloader, optimizer):
