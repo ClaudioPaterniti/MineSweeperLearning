@@ -17,7 +17,7 @@ class Game:
         self.rows = rows
         self.columns = columns
         self.size = rows*columns
-        self.mines_n = mines_n
+        self.mines_n = np.full(n, mines_n) if np.isscalar(mines_n) else mines_n
         self.mines = utils.random_binary_matrices((n, rows, columns), mines_n)
         self.numbers = self._compute_number_cells() # grids with number of neighbor mines
         self.open_cells = np.zeros_like(self.mines)
@@ -28,10 +28,10 @@ class Game:
         self.last_flagged = np.zeros_like(self.mines)
 
     def __getitem__(self, key):
-        g = Game(self.rows, self.columns, self.mines_n, 0)
         if isinstance(key, int):
             key = slice(key, key+1)
-        g.mines = self.mines[key]
+        g = Game(self.rows, self.columns, 1, 0)
+        g.mines_n = self.mines_n[key]
         g.n = g.mines.shape[0]
         g.numbers = self.numbers[key]
         g.open_cells = self.open_cells[key]

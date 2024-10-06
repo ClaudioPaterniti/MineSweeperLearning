@@ -105,7 +105,7 @@ class GameStateTransform:
         return nn.functional.pad(torch.from_numpy(channels).float(), [self.padding]*4)
 
     def _mine_rate_channel(self,
-            state: np.ndarray, tot_mines: Union[int,np.ndarray], shape: tuple[int]) -> torch.Tensor:
+            state: np.ndarray, tot_mines: np.ndarray, shape: tuple[int]) -> torch.Tensor:
         reshape = (-1,1,1) if len(state.shape) == 3 else (-1,1,)
         closed = (state == 9).sum(axis=(-2,-1))
         flags = (state == 10).sum(axis=(-2,-1))

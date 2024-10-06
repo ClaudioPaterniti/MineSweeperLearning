@@ -13,6 +13,7 @@ def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndar
     :param ones: scalar or (n) - number of ones in each matrix
     :param n: number or matrices
     """
+    if shape[0] == 0: return np.zeros(shape)
     m = np.zeros((shape[0], shape[1]*shape[2]), dtype=np.int8)
     if np.isscalar(ones):
          m[:, :ones] = 1
