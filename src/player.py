@@ -35,11 +35,11 @@ class ThresholdPlayer(Player):
         p_for_max = p - filled # set already filled cells < 0 to get meaningful high probabilities
         to_open = p_for_min < self.open_tresh # open cells below open threshold
         to_flag = p_for_max > self.flag_tresh # flag cells above flag threshold
-        no_moves = np.logical_not(np.any(to_open, axis=(1,2)) | np.any(to_flag, axis=(1,2))) # games without new open of flags
-        p_no_moves = p_for_min[no_moves]
-        to_open[no_moves] = p_no_moves <= p_no_moves.min(axis=(1,2), keepdims=True)+0.01 # open the cells with minimum
-        no_moves = np.logical_not(np.any(to_open, axis=(1,2)) | np.any(to_flag, axis=(1,2)))
+        no_moves = np.logical_not(np.any(to_open, axis=(1,2)) | np.any(to_flag, axis=(1,2))) # games without new open no flags
         if np.any(no_moves):
-            raise Exception('No moves could be selected') # it there are no moves we go into infinite loop
+            idxs = p_for_min.reshape(p.shape[0], -1)[no_moves].argmin(axis=1)
+            h_ids = idxs//game.columns
+            w_ids = idxs%game.columns
+            to_open[no_moves, h_ids, w_ids] = 1 # open the cells with minimum
         game.open_and_flag(to_open, to_flag)
         return p, to_open, to_flag

@@ -1,18 +1,24 @@
 import numpy as np
+
+from typing import Union
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, Normalize as ColorNormalize
 from matplotlib.axes import Axes
 
-def random_binary_matrices(shape: tuple[int, int, int], ones: int) -> np.ndarray:
+def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndarray]) -> np.ndarray:
     """
     return an array (n, h, w) of n random binary matrices with a certain number of ones
 
     :param shape: output array shape
-    :param ones: number of ones in each matrix
+    :param ones: scalar or (n) - number of ones in each matrix
     :param n: number or matrices
     """
     m = np.zeros((shape[0], shape[1]*shape[2]), dtype=np.int8)
-    m[:, :ones] = 1
+    if np.isscalar(ones):
+         m[:, :ones] = 1
+    else:
+        for i, n in enumerate(ones):
+            m[i, :n] = 1
     rng = np.random.default_rng()
     rng.permuted(m, axis=1, out=m)
     return m.reshape(shape)
@@ -32,7 +38,8 @@ def vanishing_colormap(cmap):
 
 def pyplot_game(          
             state: np.ndarray, mine_probs: np.ndarray=None,
-            hightlighted: np.ndarray = None, cmap = plt.cm.viridis) -> Axes:
+            highlighted: np.ndarray = None, print_zeros: bool = True,
+            cmap = plt.cm.viridis) -> Axes:
         """plot game state
         :param state: (h,w) full grid with -1 for mines, or state with 9 for closed and 10 for flags
         :param mine_probs: (h,w) ndarray of mine probabilities to plot,
@@ -40,6 +47,7 @@ def pyplot_game(
         """
         def style(x: int, p: float = None) -> dict:
             if x < 0: return {'s': 'x',  'weight': 'bold', 'color': "r"}
+            if x == 0: return {'s': x if print_zeros else '',  'weight': 'bold', 'color': "w"}
             if x < 9: return {'s': x,  'weight': 'bold', 'color': "w"}
             if x == 9: return {'s': '{:.1f}'.format(p) if p else '', 'color': "black"}
             if x == 10: return {'s': '?',  'weight': 'bold', 'color': "r"}
@@ -57,8 +65,8 @@ def pyplot_game(
                     v, p = state[r, c], mine_probs[r, c] if mine_probs is not None else None
                     ax.text(c, r, ha="center", va="center", **style(v, p))
 
-        if hightlighted is not None:                    
-            ax.matshow(hightlighted, cmap=vanishing_colormap(plt.cm.Reds))
+        if highlighted is not None:                    
+            ax.matshow(highlighted, cmap=vanishing_colormap(plt.cm.Reds))
 
         ax.grid(color="w", linestyle='-', linewidth=1)
         ax.set_xticks(np.arange(columns)-0.5)

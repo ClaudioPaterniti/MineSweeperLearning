@@ -1,5 +1,6 @@
 import numpy as np
 
+from typing import Union
 from matplotlib.colors import Normalize as ColorNormalize
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -7,8 +8,11 @@ from matplotlib.axes import Axes
 from . import utils
 
 class Game:
-    def __init__(self, rows: int=9, columns: int=9, mines_n: int=10, n: int=1):
-        """:param n: number of parallel games"""
+    def __init__(self,
+            rows: int=16, columns: int=30, mines_n: Union[int, np.ndarray]=99, n: int=1):
+        """
+        :param mines_n: scalar or (n) - the number o mines in each game
+        :param n: number of parallel games"""
         self.n = n
         self.rows = rows
         self.columns = columns
@@ -116,14 +120,17 @@ class Game:
         return self.last_opened*self.mines + self.last_flagged*(1-self.mines)
 
     def pyplot_game(self,
-            idx: int, full_grid: bool = False, mine_probs: np.ndarray=None,
-            hightlight_losing_only: bool = True, cmap = plt.cm.viridis) -> Axes:
+            idx: int, full_grid: bool = False, hightlight_losing_only: bool = True,
+            **kwargs) -> Axes:
         """plot game state
         :param idx: game index
         :param full_grid: whether to print the full grid or only the visible part
-        :param mine_probs: (h,w) ndarray of mine probabilities to plot,
         :param hightlight_losing_only if true highlights only losing moves, otherwise highlights all last moves
+        :param kwargs: args to utils.pyplot_game,
         """
         state = self.numbers[idx] if full_grid else self.game_state()[idx]
-        highlighted = self.losing_moves()[idx] if hightlight_losing_only else self.last_opened[idx] + self.last_flagged[idx]
-        return utils.pyplot_game(state, mine_probs, highlighted, cmap)
+        highlighted = self.losing_moves()[idx] if hightlight_losing_only\
+            else self.last_opened[idx] + self.last_flagged[idx]
+        kwargs['state'] = state
+        kwargs['highlighted'] = highlighted
+        return utils.pyplot_game(**kwargs)

@@ -107,6 +107,8 @@ class GameStateTransform:
     def _mine_rate_channel(self,
             state: np.ndarray, tot_mines: Union[int,np.ndarray], shape: tuple[int]) -> torch.Tensor:
         reshape = (-1,1,1) if len(state.shape) == 3 else (-1,1,)
-        rates = (state == 9).sum(axis=(-2,-1))/tot_mines
+        closed = (state == 9).sum(axis=(-2,-1))
+        flags = (state == 10).sum(axis=(-2,-1))
+        rates = (tot_mines-flags)/closed
         rate_channel = np.broadcast_to(rates.reshape(reshape), shape)
         return torch.from_numpy(rate_channel.copy()).float()
