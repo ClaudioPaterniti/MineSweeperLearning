@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 from . import utils
 
 class Game:
-    def __init__(self, rows: int=9, columns: int=9, mines_n:int =10, n: int=1):
+    def __init__(self, rows: int=9, columns: int=9, mines_n: int=10, n: int=1):
         """:param n: number of parallel games"""
         self.n = n
         self.rows = rows
@@ -99,8 +99,9 @@ class Game:
         self.active_games[self.won] = False
     
     def random_open(self, rate: float):
-        """Open random cells"""
-        to_open = utils.random_binary_matrices((self.n, self.rows, self.columns), int(rate*self.size))[self.active_games]
+        """Open random cells (cannot open mines)"""
+        to_open = utils.random_binary_matrices(
+            (self.n, self.rows, self.columns), int(rate*self.size))[self.active_games]
         to_open *= 1-self.mines # do not open mines
         self.open(to_open)
 
@@ -116,7 +117,7 @@ class Game:
 
     def pyplot_game(self,
             idx: int, full_grid: bool = False, mine_probs: np.ndarray=None,
-            hightlight_losing_only: bool = False, cmap = plt.cm.viridis) -> Axes:
+            hightlight_losing_only: bool = True, cmap = plt.cm.viridis) -> Axes:
         """plot game state
         :param idx: game index
         :param full_grid: whether to print the full grid or only the visible part

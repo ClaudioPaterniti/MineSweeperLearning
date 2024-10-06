@@ -70,13 +70,12 @@ class GameStateTransform:
         # numbers can be (h,w) or (n,h,w), tot_mines scalar or (n)
         if self.mines_rate_channel and tot_mines is None:
             raise Exception(f'This model requires the total number of mines as input')
+        
         channels = [] # list of channel to concat
         if self.ordinal_encoding:
             channels.append(self._ordinal_encoding(state))
         else:
             channels.append(self._one_hot_encoding(state))
-        y = torch.from_numpy(mines).float() if mines is not None else None
-        w = torch.from_numpy(weights).float() if weights is not None else None
         concat_dim = 1 if len(state.shape) == 3 else 0
         # padding mask channel, indicating cells outside the grid
         padding_mask = 1-nn.functional.pad(torch.ones(state.shape), [self.padding]*4)
@@ -85,6 +84,9 @@ class GameStateTransform:
             channels.append(
                 self._mine_rate_channel(state, tot_mines, padding_mask.shape).unsqueeze(concat_dim))
         x = torch.concat(channels, dim=concat_dim)
+        
+        y = torch.from_numpy(mines).float() if mines is not None else None
+        w = torch.from_numpy(weights).float() if weights is not None else None
         return x, y, w
     
     def _one_hot_encoding(self, state: np.ndarray) -> torch.Tensor:
