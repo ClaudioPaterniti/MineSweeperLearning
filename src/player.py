@@ -58,13 +58,14 @@ class GameAnimation():
         self.ax, self.s, self.h = pyplot_game(
             self.game.game_state()[0], highlighted=self.game.open_cells[0], print_zeros=False, ax=self.ax)
         self.animation = matplotlib.animation.FuncAnimation(
-            fig=self.fig, func=self._update, frames=100, interval=interval, repeat=repeat)
+            fig=self.fig, func=self._update, frames=self._frames,
+            interval=interval, repeat=repeat, save_count = 100, blit = True)
+        
+    def _frames(self):
+        while np.any(self.game.active_games):
+            yield 1
 
-    def _update(self, frame):
-        # for each frame, update the data stored on each artist.
-        if not np.any(self.game.active_games):
-            self.animation.event_source.stop()
-            return
+    def _update(self, frame):        
         self.player.step(self.game)
         state = self.game.game_state()[0]
         highlighted = self.game.last_opened[0]/2 + self.game.last_flagged[0]

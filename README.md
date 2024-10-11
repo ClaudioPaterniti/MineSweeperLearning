@@ -17,7 +17,7 @@ See simple examples of the api use in [test.ipynb](test.ipynb)
 |:--:| 
 | *Plot with predicted probabilities and last opened cells highlighted in red* |
 
-| ![plot](./.readme/game_state.png) | 
+| ![plot](./.readme/animation.gif) | 
 |:--:| 
-| *Game state plot* |
+| *Animate game played by the model* |
 
