@@ -19,5 +19,5 @@ See simple examples of the api use in [test.ipynb](test.ipynb)
 
 | ![plot](./.readme/animation.gif) | 
 |:--:| 
-| *Animate game played by the model* |
+| *Animated game played by the model* |
 
