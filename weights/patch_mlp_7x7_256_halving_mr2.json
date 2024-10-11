@@ -9,5 +9,7 @@
         8,
         4,
         2
-    ]
+    ],
+    "ordinalEncoding": false,
+    "mineRateChannel": true
 }

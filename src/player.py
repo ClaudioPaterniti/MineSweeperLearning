@@ -1,6 +1,10 @@
 import numpy as np
 
+import matplotlib.pyplot as plt
+import matplotlib.animation
+
 from .game import Game
+from .utils import pyplot_game, vanishing_colormap
 
 class Player:
     def __init__(self, model):
@@ -43,3 +47,26 @@ class ThresholdPlayer(Player):
             to_open[no_moves, h_ids, w_ids] = 1 # open the cells with minimum
         game.open_and_flag(to_open, to_flag)
         return p, to_open, to_flag
+
+class GameAnimation():
+    def __init__(self, game: Game, player: Player, interval=1500, repeat=False, cell_size: int = 0.4):
+        self.player = player
+        self.game = game
+
+        self.fig, self.ax = plt.subplots(figsize=(self.game.columns*cell_size, self.game.rows*cell_size))
+        self.fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+        self.ax, self.s, self.h = pyplot_game(
+            self.game.game_state()[0], highlighted=self.game.open_cells[0], print_zeros=False, ax=self.ax)
+        self.animation = matplotlib.animation.FuncAnimation(
+            fig=self.fig, func=self._update, frames=100, interval=interval, repeat=repeat)
+
+    def _update(self, frame):
+        # for each frame, update the data stored on each artist.
+        if not np.any(self.game.active_games):
+            self.animation.event_source.stop()
+            return
+        self.player.step(self.game)
+        state = self.game.game_state()[0]
+        highlighted = self.game.last_opened[0]/2 + self.game.last_flagged[0]
+        pyplot_game(state, highlighted=highlighted, init=False, ax=self.ax, state_artist=self.s, hghl_artist=self.h)
+        return [self.s, self.h]

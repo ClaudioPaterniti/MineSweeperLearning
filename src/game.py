@@ -33,6 +33,7 @@ class Game:
         g = Game(self.rows, self.columns, 1, 0)
         g.mines_n = self.mines_n[key]
         g.n = g.mines.shape[0]
+        g.mines = self.mines[key]
         g.numbers = self.numbers[key]
         g.open_cells = self.open_cells[key]
         g.flags = self.flags[key]
@@ -120,8 +121,8 @@ class Game:
         return self.last_opened*self.mines + self.last_flagged*(1-self.mines)
 
     def pyplot_game(self,
-            idx: int, full_grid: bool = False, hightlight_losing_only: bool = True,
-            **kwargs) -> Axes:
+            idx: int, full_grid: bool = False, highlight_losing_only: bool = True,
+            **plot_kwargs) -> Axes:
         """plot game state
         :param idx: game index
         :param full_grid: whether to print the full grid or only the visible part
@@ -129,8 +130,8 @@ class Game:
         :param kwargs: args to utils.pyplot_game,
         """
         state = self.numbers[idx] if full_grid else self.game_state()[idx]
-        highlighted = self.losing_moves()[idx] if hightlight_losing_only\
+        highlighted = self.losing_moves()[idx] if highlight_losing_only\
             else self.last_opened[idx] + self.last_flagged[idx]
-        kwargs['state'] = state
-        kwargs['highlighted'] = highlighted
-        return utils.pyplot_game(**kwargs)
+        plot_kwargs['state'] = state
+        plot_kwargs['highlighted'] = highlighted
+        return utils.pyplot_game(**plot_kwargs)

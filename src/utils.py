@@ -4,6 +4,7 @@ from typing import Union
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, Normalize as ColorNormalize
 from matplotlib.axes import Axes
+from matplotlib.image import AxesImage
 
 def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndarray]) -> np.ndarray:
     """
@@ -40,11 +41,14 @@ def vanishing_colormap(cmap):
 def pyplot_game(          
             state: np.ndarray, mine_probs: np.ndarray=None,
             highlighted: np.ndarray = None, print_zeros: bool = True,
-            cmap = plt.cm.viridis) -> Axes:
+            cmap = plt.cm.viridis, size: int = 0.5, init: bool = True,
+            ax: Axes = None, state_artist: AxesImage = None, hghl_artist: AxesImage= None
+            ) -> tuple[Axes, AxesImage, AxesImage]:
         """plot game state
         :param state: (h,w) full grid with -1 for mines, or state with 9 for closed and 10 for flags
         :param mine_probs: (h,w) ndarray of mine probabilities to plot,
         :param hightlighted: binary (h,w) of cells to highlight
+        :param size: size of a square
         """
         def style(x: int, p: float = None) -> dict:
             if x < 0: return {'s': 'x',  'weight': 'bold', 'color': "r"}
@@ -59,20 +63,32 @@ def pyplot_game(
         # colors shifted of 0.2 to distinguish open cells
         color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
               else (1-open_cells)*0.2+flags
-        plt.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
-        ax = plt.gca()
+        _ax = ax
+        if not ax:
+            fig, _ax = plt.subplots(figsize=(columns*size, rows*size))
+        if not state_artist:
+            state_artist = _ax.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
+        else:
+            state_artist.set_data(color)
         for r in range(rows):
             for c in range(columns):
                     v, p = state[r, c], mine_probs[r, c] if mine_probs is not None else None
-                    ax.text(c, r, ha="center", va="center", **style(v, p))
+                    _ax.text(c, r, ha="center", va="center", **style(v, p))
 
-        if highlighted is not None:                    
-            ax.matshow(highlighted, cmap=vanishing_colormap(plt.cm.Reds))
+        if highlighted is not None:
+            if not hghl_artist:
+                hghl_artist = _ax.matshow(highlighted, cmap=vanishing_colormap(plt.cm.Reds),
+                                          norm=ColorNormalize(vmin=0, vmax=1))
+            else:
+                hghl_artist.set_data(highlighted)
 
-        ax.grid(color="w", linestyle='-', linewidth=1)
-        ax.set_xticks(np.arange(columns)-0.5)
-        ax.set_yticks(np.arange(rows)-0.5)
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        plt.show()
-        return ax
+        if init:
+            _ax.grid(color="w", linestyle='-', linewidth=1)
+            _ax.set_xticks(np.arange(columns)-0.5)
+            _ax.set_yticks(np.arange(rows)-0.5)
+            _ax.set_xticklabels([])
+            _ax.set_yticklabels([])
+        if not ax:
+            plt.show()
+
+        return _ax, state_artist, hghl_artist
