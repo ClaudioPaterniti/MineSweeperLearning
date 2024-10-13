@@ -82,7 +82,7 @@ class Game:
         if not _no_losing:
             self.active_games[self.active_games] = correct
             self.active_games[self.won] = False
-        return correct  
+        return correct
     
     def flag(self, flags: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]: # wrong flag make you lose for training convenience
         """Mark active games cells as flagged, return bool array (n) where False means a wrong flag has been placed
@@ -105,8 +105,9 @@ class Game:
         self.active_games[self.won] = False
 
     def open_zero(self):
-        """Open a 0. Use it at the start of the game only"""
-        weighted_zeros = np.random.random_sample(self.mines.shape)*(self.numbers == 0)
+        """Open a 0. Use it at the start of the game only. (It opens a minimum cell if no zeroes)"""
+        mins = (self.numbers + 10*self.mines).min(axis=(1,2)).reshape(self.n, 1 , 1)
+        weighted_zeros = np.random.random_sample(self.mines.shape)*(self.numbers == mins)
         random_zero = weighted_zeros.reshape(self.n, -1).argmax(axis=1)
         h_ids = random_zero//self.columns
         w_ids = random_zero%self.columns

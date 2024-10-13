@@ -10,7 +10,7 @@ from src.player import ThresholdPlayer
 
 if __name__ == '__main__':
     size = int(sys.argv[1])
-    path = sys.argv[2] if len(sys.argv) > 1 else 'dataset/dataset.npy'
+    path = sys.argv[2] if len(sys.argv) > 2 else 'dataset/dataset.npy'
     print(f'size: {size}')
 
     device = (
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     for i in range(5): # 1/4 random
         n = math.ceil(size/20)
         print(f'Generating {n} random open samples with {0.1*(i+1)}')
-        games = Game(16, 30, np.random.normal(99, 30, n).astype(int), n)
+        games = Game(16, 30, np.random.normal(99, 30, n).astype(int).clip(40, 160), n)
         games.random_open(0.1*(i+1))
         games.random_flags(0.1*(i+1))
         samples_n += games.n
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     for i in range(5): # 1/4 playing from random
         n = math.ceil(size/20)
         print(f'Generating {n} samples playing {i+1} turns from random')
-        games = Game(16, 30, np.random.normal(99, 30, n).astype(int), n)
+        games = Game(16, 30, np.random.normal(99, 30, n).astype(int).clip(40, 160), n)
         games.random_open(0.1)
         player.play(games, i+1)
         samples_n += games.n
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     for i in range(5): # 1/4 playing from zero
         n = math.ceil(size/20)
         print(f'Generating {n} samples playing {6+i} turns from two zeros')
-        games = Game(16, 30, np.random.normal(99, 30, n).astype(int), n)
+        games = Game(16, 30, np.random.normal(99, 30, n).astype(int).clip(40, 160), n)
         games.open_zero()
         games.open_zero()
         player.play(games, 6+i)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     while samples_n < size: # 1/4 lost
         n = min(math.ceil(size/2), 10_000)
         print(f'Generating {n} samples from lost games')
-        games = Game(16, 30, np.random.normal(99, 30, n).astype(int), n)
+        games = Game(16, 30, np.random.normal(99, 30, n).astype(int).clip(40, 160), n)
         games.open_zero()
         player.play(games)
         lost = games.as_dataset()[np.logical_not(games.won)]
