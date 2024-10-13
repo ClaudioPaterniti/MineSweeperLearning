@@ -1,3 +1,6 @@
+dataset/
+
+.vscode
 __pycache__
 .idea
 .ipynb_checkpoints

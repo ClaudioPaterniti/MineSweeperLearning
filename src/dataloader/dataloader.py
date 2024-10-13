@@ -10,29 +10,22 @@ from ..game import Game
 class MineSweeperDataset(Dataset):
 
     def __init__(self,
-                 games: Game, transform=None,
-                 mines_weight: int = 1,
-                 losing_moves_weight: int = 1,):
+                 games: np.ndarray, transform=None,
+                 weights: np.ndarray = None):
+        """Create dataset for training
+
+        :param states: ndarray (n,w,h) with:
+         -1: mine;
+         0-8: open cell with the number;
+         9: closed clee;
+         10: flag;
+        :param weights: ndarray (n,w,h) with weights for loss"""
+        self.states = games + (games == -1)*10 # set mines from -1 to 9
+        self.target = (games == -1).astype(np.int8)
+        self.tot_mines = self.target.sum(axis=(-1,-2))   
         self.transform = transform
-        self.target = games.mines
-        self.states = games.game_state()
-        self.tot_mines = games.mines.sum(axis=(-1,-2))
-        self.losing_moves_weight = losing_moves_weight
-        self.mines_weight = mines_weight
-        self.weights = self._compute_weights(games)
+        self.weights = weights if weights is not None else np.ones_like(games)
         self.rng = np.random.default_rng()
-
-    def mix(self, games: Game):
-        shuffle = self.rng.permutation(self.target.shape[0])
-        self.target = np.concatenate((self.target[shuffle[:-games.n]], games.mines))
-        self.states = np.concatenate((self.states[shuffle[:-games.n]], games.game_state()))
-        weights = self._compute_weights(games)
-        self.weights = np.concatenate((self.weights[shuffle[:-games.n]], weights))
-
-    def _compute_weights(self, games: Game) -> np.ndarray:
-        return (1
-                + games.mines*(self.mines_weight-1)
-                + games.losing_moves()*(self.losing_moves_weight-1))
 
     def __len__(self):
         return self.target.shape[0]

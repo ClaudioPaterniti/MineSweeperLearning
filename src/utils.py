@@ -17,7 +17,7 @@ def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndar
     if shape[0] == 0: return np.zeros(shape)
     m = np.zeros((shape[0], shape[1]*shape[2]), dtype=np.int8)
     if np.isscalar(ones):
-         m[:, :ones] = 1
+         m[:, :np.take(ones, 0)] = 1
     else:
         for i, n in enumerate(ones):
             m[i, :n] = 1
@@ -61,11 +61,12 @@ def pyplot_game(
             if x == 10: return {'s': '?',  'weight': 'bold', 'color': "r"}
 
         rows, columns = state.shape
-        open_cells = state < 9
+        open_cells = np.logical_and(state < 9, state >= 0)
+        mines = state == -1
         flags = state == 10
         # colors shifted of 0.2 to distinguish open cells
         color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
-              else (1-open_cells)*0.2+flags
+              else (1-open_cells)*0.2 + flags + mines
         _ax = ax
         if not ax:
             fig, _ax = plt.subplots(figsize=(columns*size, rows*size))

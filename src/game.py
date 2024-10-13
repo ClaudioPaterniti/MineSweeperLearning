@@ -91,7 +91,8 @@ class Game:
         """
         flags = flags*(1-self.open_cells[self.active_games])
         self.last_flagged[self.active_games] = flags
-        self.flags[self.active_games] = np.bitwise_or(self.flags[self.active_games], flags)
+        self.flags[self.active_games] = np.bitwise_or(
+            self.flags[self.active_games], flags*self.mines[self.active_games])
         correct = np.logical_not(np.any((1-self.mines[self.active_games])*flags, axis=(1,2)))
         if not _no_losing: self.active_games[self.active_games] = correct
         return correct
@@ -105,24 +106,24 @@ class Game:
 
     def open_zero(self):
         """Open a 0. Use it at the start of the game only"""
-        idxs = (self.numbers == 0).reshape(self.n, -1).argmax(axis=1)
-        h_ids = idxs//self.columns
-        w_ids = idxs%self.columns
+        weighted_zeros = np.random.random_sample(self.mines.shape)*(self.numbers == 0)
+        random_zero = weighted_zeros.reshape(self.n, -1).argmax(axis=1)
+        h_ids = random_zero//self.columns
+        w_ids = random_zero%self.columns
         to_open = np.zeros_like(self.mines)
         to_open[np.arange(self.n), h_ids, w_ids] = 1 # open one zero per game
         self.open(to_open)
     
     def random_open(self, rate: float):
         """Open random cells (cannot open mines). Use it at the start of the game only"""
-        to_open = utils.random_binary_matrices(
-            (self.n, self.rows, self.columns), int(rate*self.size))[self.active_games]
-        to_open *= 1-self.mines # do not open mines
+        to_open = np.random.random_sample(self.mines.shape) < rate
+        to_open = to_open*(1-self.mines) # do not open mines
         self.open(to_open)
 
     def random_flags(self, rate: float):
         """Flag random mines. Use it at the start of the game only"""
-        to_flag = utils.random_binary_matrices((self.n, self.rows, self.columns), int(rate*self.size))
-        to_flag *= self.mines # only flag mines
+        to_flag = np.random.random_sample(self.mines.shape) < rate
+        to_flag = to_flag*self.mines # only flag mines
         self.flag(to_flag)
 
     def losing_moves(self) -> np.ndarray:
@@ -130,7 +131,7 @@ class Game:
         return self.last_opened*self.mines + self.last_flagged*(1-self.mines)
 
     def pyplot_game(self,
-            idx: int, full_grid: bool = False, highlighted: Union[str, np.ndarray] = None,
+            idx: int = 0, full_grid: bool = False, highlighted: Union[str, np.ndarray] = None,
             **plot_kwargs) -> Axes:
         """plot game state
         :param idx: game index
@@ -146,3 +147,15 @@ class Game:
         elif highlighted == 'last_moves':
             plot_kwargs['highlighted'] = self.last_flagged[idx] - self.last_opened[idx]
         return utils.pyplot_game(**plot_kwargs)
+    
+    def as_dataset(self) -> np.ndarray:
+        """returns the current state as an np.int8 ndarray (n,w,h) with:
+         - -1: mine
+         - 0-8: open cell with the number
+         - 9: closed clee
+         - 10: flag"""
+        return (self.numbers*self.open_cells
+                + 9*(1 - self.open_cells - self.mines)
+                - self.mines
+                + 11*self.flags)
+        
