@@ -2,7 +2,7 @@ import numpy as np
 
 from typing import Union
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap, Normalize as ColorNormalize
+from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize as ColorNormalize
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 
@@ -26,22 +26,25 @@ def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndar
     return m.reshape(shape)
 
 
-def vanishing_colormap(cmap):
+def vanishing_colormap(cmap: Colormap, diverging: bool = False):
     """alter the color map to start with alpha = 1"""
     ncolors = 256
     color_array = cmap(range(ncolors))
 
+    alpha = (np.linspace(0.0,1.0,ncolors) if not diverging
+             else np.abs(np.linspace(-1.0, 1.0, ncolors)))    
+
     # change alpha values
-    color_array[:,-1] = np.linspace(0.0,1.0,ncolors)
+    color_array[:,-1] = alpha
 
     # create a colormap object
-    map_object = LinearSegmentedColormap.from_list(name='reds_alpha',colors=color_array)
+    map_object = LinearSegmentedColormap.from_list(name=f'{cmap.name}_vanishing',colors=color_array)
     return map_object
 
 def pyplot_game(          
             state: np.ndarray, mine_probs: np.ndarray=None,
             highlighted: np.ndarray = None, print_zeros: bool = True,
-            cmap = plt.cm.viridis, size: int = 0.5, init: bool = True,
+            cmap :str = 'viridis', size: int = 0.35, init: bool = True,
             ax: Axes = None, state_artist: AxesImage = None, hghl_artist: AxesImage= None
             ) -> tuple[Axes, AxesImage, AxesImage]:
         """plot game state
@@ -66,6 +69,7 @@ def pyplot_game(
         _ax = ax
         if not ax:
             fig, _ax = plt.subplots(figsize=(columns*size, rows*size))
+            fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
         if not state_artist:
             state_artist = _ax.matshow(color, cmap=cmap, norm=ColorNormalize(vmin=0, vmax=1))
         else:
@@ -77,8 +81,9 @@ def pyplot_game(
 
         if highlighted is not None:
             if not hghl_artist:
-                hghl_artist = _ax.matshow(highlighted, cmap=vanishing_colormap(plt.cm.Reds),
-                                          norm=ColorNormalize(vmin=0, vmax=1))
+                hghl_artist = _ax.matshow(
+                    highlighted, cmap=vanishing_colormap(plt.get_cmap('RdYlGn_r'), True),
+                    norm=ColorNormalize(vmin=-1, vmax=1))
             else:
                 hghl_artist.set_data(highlighted)
 

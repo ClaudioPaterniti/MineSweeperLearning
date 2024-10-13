@@ -82,7 +82,7 @@ class Game:
         if not _no_losing:
             self.active_games[self.active_games] = correct
             self.active_games[self.won] = False
-        return correct    
+        return correct  
     
     def flag(self, flags: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]: # wrong flag make you lose for training convenience
         """Mark active games cells as flagged, return bool array (n) where False means a wrong flag has been placed
@@ -102,16 +102,25 @@ class Game:
         correct_flag = self.flag(to_flag, True)
         self.active_games[self.active_games] = correct_open & correct_flag
         self.active_games[self.won] = False
+
+    def open_zero(self):
+        """Open a 0. Use it at the start of the game only"""
+        idxs = (self.numbers == 0).reshape(self.n, -1).argmax(axis=1)
+        h_ids = idxs//self.columns
+        w_ids = idxs%self.columns
+        to_open = np.zeros_like(self.mines)
+        to_open[np.arange(self.n), h_ids, w_ids] = 1 # open one zero per game
+        self.open(to_open)
     
     def random_open(self, rate: float):
-        """Open random cells (cannot open mines)"""
+        """Open random cells (cannot open mines). Use it at the start of the game only"""
         to_open = utils.random_binary_matrices(
             (self.n, self.rows, self.columns), int(rate*self.size))[self.active_games]
         to_open *= 1-self.mines # do not open mines
         self.open(to_open)
 
     def random_flags(self, rate: float):
-        """Flag random mines"""
+        """Flag random mines. Use it at the start of the game only"""
         to_flag = utils.random_binary_matrices((self.n, self.rows, self.columns), int(rate*self.size))
         to_flag *= self.mines # only flag mines
         self.flag(to_flag)
@@ -121,17 +130,19 @@ class Game:
         return self.last_opened*self.mines + self.last_flagged*(1-self.mines)
 
     def pyplot_game(self,
-            idx: int, full_grid: bool = False, highlight_losing_only: bool = True,
+            idx: int, full_grid: bool = False, highlighted: Union[str, np.ndarray] = None,
             **plot_kwargs) -> Axes:
         """plot game state
         :param idx: game index
         :param full_grid: whether to print the full grid or only the visible part
-        :param hightlight_losing_only if true highlights only losing moves, otherwise highlights all last moves
-        :param kwargs: args to utils.pyplot_game,
+        :param hightlighted: np.ndarray or one of ['losing', 'last_moves']
+        :param plot_kwargs: args to utils.pyplot_game,
         """
-        state = self.numbers[idx] if full_grid else self.game_state()[idx]
-        highlighted = self.losing_moves()[idx] if highlight_losing_only\
-            else self.last_opened[idx] + self.last_flagged[idx]
-        plot_kwargs['state'] = state
-        plot_kwargs['highlighted'] = highlighted
+        plot_kwargs['state'] = self.numbers[idx] if full_grid else self.game_state()[idx]
+        if isinstance(highlighted, np.ndarray):
+            plot_kwargs['highlighted'] = highlighted
+        elif highlighted == 'losing':
+            plot_kwargs['highlighted'] = self.losing_moves()[idx]
+        elif highlighted == 'last_moves':
+            plot_kwargs['highlighted'] = self.last_flagged[idx] - self.last_opened[idx]
         return utils.pyplot_game(**plot_kwargs)

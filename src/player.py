@@ -7,8 +7,6 @@ from .game import Game
 from .utils import pyplot_game, vanishing_colormap
 
 class Player:
-    def __init__(self, model):
-       self.model = model
 
     def play(self, game: Game, turns: int = np.inf):
         """
@@ -20,19 +18,33 @@ class Player:
             self.step(game)
             i += 1
 
-    def step(self, game: Game):
+    def step(self, game: Game) -> tuple[np.ndarray, np.ndarray]:
+        """Play one turn.
+        Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
+        to_open, to_flag = self.get_moves(game)
+        if to_open is not None:  
+            game.open_and_flag(to_open, to_flag)
+        return to_open, to_flag
+    
+    def get_moves(self, game: Game) -> tuple[np.ndarray, np.ndarray]:
+        """Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
         raise NotImplementedError()
+    
+    def plot_moves(self, game: Game, idx: int = 0):        
+        to_open, to_flag = self.get_moves(game[idx])
+        game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0])
 
 class ThresholdPlayer(Player):
     def __init__(self, model, open_thresh: int=0.01, flag_thresh: int=0.99):
-        super().__init__(model)
+        super().__init__()
+        self.model = model
         self.open_tresh = open_thresh
         self.flag_tresh = flag_thresh
 
-    def step(self, game: Game):
+    def get_moves(self, game: Game) -> tuple[np.ndarray, np.ndarray]:        
         if not np.any(game.active_games):
             print('no active games')
-            return None, None, None
+            return None, None
         p = self.model(game.game_state(active_only=True), game.mines_n[game.active_games])
         filled = game.open_cells[game.active_games] + game.flags[game.active_games]
         p_for_min = p + filled # set already filled cells > 1 to get meaningful low probabilties
@@ -44,9 +56,8 @@ class ThresholdPlayer(Player):
             idxs = p_for_min.reshape(p.shape[0], -1)[no_moves].argmin(axis=1)
             h_ids = idxs//game.columns
             w_ids = idxs%game.columns
-            to_open[no_moves, h_ids, w_ids] = 1 # open the cells with minimum
-        game.open_and_flag(to_open, to_flag)
-        return p, to_open, to_flag
+            to_open[no_moves, h_ids, w_ids] = 1 # open the cell with minimum
+        return to_open.astype(np.int8), to_flag.astype(np.int8)
 
 class GameAnimation():
     def __init__(self, game: Game, player: Player, interval=1500, repeat=False, cell_size: int = 0.4):
@@ -68,6 +79,6 @@ class GameAnimation():
     def _update(self, frame):        
         self.player.step(self.game)
         state = self.game.game_state()[0]
-        highlighted = self.game.last_opened[0]/2 + self.game.last_flagged[0]
+        highlighted = self.game.last_flagged[0] - self.game.last_opened[0]
         pyplot_game(state, highlighted=highlighted, init=False, ax=self.ax, state_artist=self.s, hghl_artist=self.h)
         return [self.s, self.h]

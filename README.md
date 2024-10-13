@@ -15,7 +15,7 @@ See simple examples of the api use in [test.ipynb](test.ipynb)
 
 | ![plot](./.readme/highlights_and_ps.png) | 
 |:--:| 
-| *Plot with predicted probabilities and last opened cells highlighted in red* |
+| *Plot with predicted probabilities. (Green = last opened, Red = last flagged)* |
 
 | ![plot](./.readme/animation.gif) | 
 |:--:| 
