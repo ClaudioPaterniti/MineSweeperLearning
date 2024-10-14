@@ -13,6 +13,7 @@ class Game:
         """
         :param mines_n: scalar or (n) - the number o mines in each game
         :param n: number of parallel games"""
+        self.rng = np.random.default_rng()
         self.n = n
         self.rows = rows
         self.columns = columns
@@ -22,8 +23,8 @@ class Game:
         self.numbers = self._compute_number_cells() # grids with number of neighbor mines
         self.open_cells = np.zeros_like(self.mines)
         self.flags = np.zeros_like(self.mines)
-        self.active_games = np.ones(n, dtype=bool)
-        self.won = np.zeros(n, dtype=bool)
+        self.active_games = np.full(n, True)
+        self.won = np.full(n, False)
         self.last_opened = np.zeros_like(self.mines)
         self.last_flagged = np.zeros_like(self.mines)
 
@@ -52,6 +53,14 @@ class Game:
         grids[self.mines.astype(bool)] = -1
         return grids
     
+    def reset(self):
+        self.open_cells.fill(0)
+        self.flags.fill(0)
+        self.active_games.fill(True)
+        self.won.fill(False)
+        self.last_opened.fill(0)
+        self.last_flagged.fill(0)
+    
     def game_state(self, active_only: bool = False):
         """return the games with:
         0-8: open cell with corresponding minesweeper number,
@@ -63,7 +72,7 @@ class Game:
     def scores(self, final_only: bool = False):
         """return percentage of non-mine cells opened"""
         mask = np.logical_not(self.active_games) if final_only else np.full(self.n, True)
-        to_open = self.size - self.mines[mask].sum(axis=(1,2))
+        to_open = self.size - self.mines_n
         return self.open_cells[mask].sum(axis=(1,2))/to_open
     
     def win_rate(self):
@@ -107,23 +116,24 @@ class Game:
     def open_zero(self):
         """Open a 0. Use it at the start of the game only. (It opens a minimum cell if no zeroes)"""
         mins = (self.numbers + 10*self.mines).min(axis=(1,2)).reshape(self.n, 1 , 1)
-        weighted_zeros = np.random.random_sample(self.mines.shape)*(self.numbers == mins)
+        weighted_zeros = self.rng.random(self.mines.shape)*(self.numbers == mins)
         random_zero = weighted_zeros.reshape(self.n, -1).argmax(axis=1)
         h_ids = random_zero//self.columns
         w_ids = random_zero%self.columns
         to_open = np.zeros_like(self.mines)
         to_open[np.arange(self.n), h_ids, w_ids] = 1 # open one zero per game
         self.open(to_open)
+        return to_open
     
     def random_open(self, rate: float):
         """Open random cells (cannot open mines). Use it at the start of the game only"""
-        to_open = np.random.random_sample(self.mines.shape) < rate
+        to_open = self.rng.random(self.mines.shape) < rate
         to_open = to_open*(1-self.mines) # do not open mines
         self.open(to_open)
 
     def random_flags(self, rate: float):
         """Flag random mines. Use it at the start of the game only"""
-        to_flag = np.random.random_sample(self.mines.shape) < rate
+        to_flag = self.rng.random(self.mines.shape) < rate
         to_flag = to_flag*self.mines # only flag mines
         self.flag(to_flag)
 
@@ -153,7 +163,7 @@ class Game:
         """returns the current state as an np.int8 ndarray (n,w,h) with:
          - -1: mine
          - 0-8: open cell with the number
-         - 9: closed clee
+         - 9: closed cell
          - 10: flag"""
         return (self.numbers*self.open_cells
                 + 9*(1 - self.open_cells - self.mines)

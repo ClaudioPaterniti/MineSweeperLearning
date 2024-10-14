@@ -7,34 +7,10 @@ from torch import nn
 
 from .modules import PatchMLP
 from ..dataloader.dataloader import *
-    
-class PatchMLPModel:
-    def __init__(self,
-            patch_radius: int,
-            layers: list[int] = [200]*4,
-            ordinal_encoding: bool = False,
-            mine_rate_channel: bool = False,
-            device: str = 'cpu'):
-        self.pad = patch_radius
-        self.kernel = 2*patch_radius+1
-        self.device = device
-        self.layers = layers
-        self.ordinal_encoding = ordinal_encoding
-        self.mine_rate_channel = mine_rate_channel
-        self.transform = GameStateTransform(self.pad, self.ordinal_encoding, self.mine_rate_channel)
-        input_mask = torch.ones((self.kernel, self.kernel))
-        input_mask[patch_radius, patch_radius] = 0 # mask the value of the cell to predict
-        channels = 4 if ordinal_encoding else 12
-        channels += 1 if mine_rate_channel else 0
-        self.model = PatchMLP(
-            in_channels=channels,
-            out_channels=1,
-            patch_size= self.kernel,
-            padding=0,
-            layer_units=layers,
-            input_mask = input_mask,
-            out_activation=nn.Sigmoid()
-        )
+
+class MinesweeperModel:
+    def __init__(self, model: nn.Module):
+        self.model = model
         self.train_loss_log = []
         self.test_loss_log = []
 
@@ -42,8 +18,24 @@ class PatchMLPModel:
         squeezed = pred.view(pred.size(0), pred.size(2), pred.size(3))
         return nn.functional.binary_cross_entropy(squeezed, target, weight=weights)
     
+    def transform(self,
+            state: np.ndarray,
+            tot_mines: np.ndarray = None,
+            mines: np.ndarray = None,
+            weights: np.ndarray = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Prepare input for the model
+        
+        :param state: (n,w,h) with games state
+        :param tot_mines: (n) with tot number of mines in the game
+        :param mines: binary (n,w,h) with the mines positions
+        :param weights: (n,w,h) with the weights for the cell loss
+        
+        :returns: (x, y, w) = model input, target and loss weights"""
+        raise NotImplementedError()
+    
     def __call__(self,
-            game_state: np.ndarray, tot_mines: np.ndarray= None, batch_size: int = 1000) -> np.ndarray:
+            game_state: np.ndarray, tot_mines: np.ndarray= None,
+            batch_size: int = 1000, **kwargs) -> np.ndarray:
         self.model.eval()
         self.model.to(self.device)
         out = []
@@ -85,6 +77,36 @@ class PatchMLPModel:
                 pred = self.model(x)
                 test_loss += self.loss(pred, y, w).item()
         self.test_loss_log.append(test_loss / len(dataloader))
+    
+class PatchMLPModel(MinesweeperModel):
+    def __init__(self,
+            patch_radius: int,
+            layers: list[int] = [200]*4,
+            ordinal_encoding: bool = False,
+            mine_rate_channel: bool = False,
+            device: str = 'cpu'):
+        self.pad = patch_radius
+        self.kernel = 2*patch_radius+1
+        self.device = device
+        self.layers = layers
+        self.ordinal_encoding = ordinal_encoding
+        self.mine_rate_channel = mine_rate_channel
+        input_mask = torch.ones((self.kernel, self.kernel))
+        input_mask[patch_radius, patch_radius] = 0 # mask the value of the cell to predict
+        channels = 4 if ordinal_encoding else 12
+        channels += 1 if mine_rate_channel else 0
+        model = PatchMLP(
+            in_channels=channels,
+            out_channels=1,
+            patch_size= self.kernel,
+            padding=0,
+            layer_units=layers,
+            input_mask = input_mask,
+            out_activation=nn.Sigmoid()
+        )
+        super().__init__(model)
+        
+        self.transform = GameStateTransform(self.pad, self.ordinal_encoding, self.mine_rate_channel)
 
     def save(self, path: str):
         torch.save(self.model.state_dict(), path)

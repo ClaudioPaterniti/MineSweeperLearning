@@ -21,7 +21,7 @@ class MineSweeperDataset(Dataset):
          10: flag;
         :param weights: ndarray (n,w,h) with weights for loss"""
         self.states = games + (games == -1)*10 # set mines from -1 to 9
-        self.target = (games == -1).astype(np.int8)
+        self.target = np.logical_or(games == -1, games == 10).astype(np.int8)
         self.tot_mines = self.target.sum(axis=(-1,-2))   
         self.transform = transform
         self.weights = weights if weights is not None else np.ones_like(games)
