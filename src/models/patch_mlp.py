@@ -94,12 +94,14 @@ class PatchMLPModel(MinesweeperModel):
         input_mask = torch.ones((self.kernel, self.kernel))
         input_mask[patch_radius, patch_radius] = 0 # mask the value of the cell to predict
         channels = 4 if ordinal_encoding else 12
-        channels += 1 if mine_rate_channel else 0
+        if mine_rate_channel:
+            channels += 1
+
         model = PatchMLP(
             in_channels=channels,
             out_channels=1,
             patch_size= self.kernel,
-            padding=0,
+            padding=0, # input already padded by transform
             layer_units=layers,
             input_mask = input_mask,
             out_activation=nn.Sigmoid()

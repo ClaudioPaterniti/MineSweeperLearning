@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation
 
 from .game import Game
+from .models.patch_mlp import MinesweeperModel
 from .utils import pyplot_game, vanishing_colormap
 
 class Player:
@@ -36,7 +37,7 @@ class Player:
             game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0])
 
 class ThresholdPlayer(Player):
-    def __init__(self, model, open_thresh: int=0.01, flag_thresh: int=0.99):
+    def __init__(self, model: MinesweeperModel, open_thresh: int=0.01, flag_thresh: int=0.99):
         super().__init__()
         self.model = model
         self.open_tresh = open_thresh
@@ -58,7 +59,7 @@ class ThresholdPlayer(Player):
             h_ids = idxs//game.columns
             w_ids = idxs%game.columns
             to_open[no_moves, h_ids, w_ids] = 1 # open the cell with minimum
-        return to_open.astype(np.int8), to_flag.astype(np.int8)
+        return to_open.view(np.int8), to_flag.view(np.int8)
 
 class GameAnimation():
     def __init__(self, game: Game, player: Player, interval=1500, repeat=False, cell_size: int = 0.4):
