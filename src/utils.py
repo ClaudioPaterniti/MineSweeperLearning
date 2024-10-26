@@ -6,7 +6,7 @@ from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize as Co
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 
-def sample(data: np.ndarray, n: int):
+def sample(data: np.ndarray, n: int) -> np.ndarray:
     rng = np.random.default_rng()
     return data[rng.choice(data.shape[0], n, replace=False)]
 

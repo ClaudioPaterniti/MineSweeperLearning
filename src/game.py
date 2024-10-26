@@ -138,8 +138,8 @@ class Game:
         self.flag(to_flag)
 
     def losing_moves(self) -> np.ndarray:
-        """return (n,h,w) binary array of wrong openings or flags in the last actions"""
-        return self.last_opened*self.mines + self.last_flagged*(1-self.mines)
+        """return (n,h,w) binary array of wrong openings (-1) or flags (+1) in the last actions"""
+        return self.last_flagged*(1-self.mines) - self.last_opened*self.mines
 
     def pyplot_game(self,
             idx: int = 0, full_grid: bool = False, highlighted: Union[str, np.ndarray] = None,

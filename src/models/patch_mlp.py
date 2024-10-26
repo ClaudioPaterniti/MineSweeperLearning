@@ -11,8 +11,6 @@ from ..dataloader.dataloader import *
 class MinesweeperModel:
     def __init__(self, model: nn.Module):
         self.model = model
-        self.train_loss_log = []
-        self.test_loss_log = []
 
     def loss(self, pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
         squeezed = pred.view(pred.size(0), pred.size(2), pred.size(3))
@@ -39,15 +37,17 @@ class MinesweeperModel:
         self.model.eval()
         self.model.to(self.device)
         out = []
-        for b in range(0, game_state.shape[0], batch_size):
-            state = game_state[b:b+batch_size]
-            mines_n = tot_mines[b:b+batch_size] if tot_mines is not None else None
-            x, _, _ = self.transform(state, mines_n)
-            x = x.to(self.device)
-            out.append(self.model(x).view(state.shape).detach().cpu().numpy())
+        with torch.no_grad():
+            for b in range(0, game_state.shape[0], batch_size):
+                state = game_state[b:b+batch_size]
+                mines_n = tot_mines[b:b+batch_size] if tot_mines is not None else None
+                x, _, _ = self.transform(state, mines_n)
+                x = x.to(self.device)
+                out.append(self.model(x).view(state.shape).detach().cpu().numpy())
         return np.concatenate(out)
     
-    def train(self, dataloader, optimizer):
+    def train(self, dataloader, optimizer) -> float:
+        """returns the mean batch loss"""
         self.model.train()
         self.model.to(self.device)
         train_loss = 0
@@ -65,9 +65,10 @@ class MinesweeperModel:
 
             train_loss += loss.item()
             
-        self.train_loss_log.append(train_loss/len(dataloader))
+        return train_loss / len(dataloader)
 
-    def test(self, dataloader):
+    def test(self, dataloader) -> float:
+        """returns the mean batch loss"""
         self.model.eval()
         self.model.to(self.device)
         test_loss = 0
@@ -76,7 +77,8 @@ class MinesweeperModel:
                 x, y, w = x.to(self.device), y.to(self.device), w.to(self.device)
                 pred = self.model(x)
                 test_loss += self.loss(pred, y, w).item()
-        self.test_loss_log.append(test_loss / len(dataloader))
+
+        return test_loss / len(dataloader)
     
 class PatchMLPModel(MinesweeperModel):
     def __init__(self,
