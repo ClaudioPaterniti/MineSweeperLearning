@@ -6,6 +6,10 @@ from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize as Co
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 
+def sample(data: np.ndarray, n: int):
+    rng = np.random.default_rng()
+    return data[rng.choice(data.shape[0], n, replace=False)]
+
 def random_binary_matrices(shape: tuple[int, int, int], ones: Union[int, np.ndarray]) -> np.ndarray:
     """
     return an array (n, h, w) of n random binary matrices with a certain number of ones
