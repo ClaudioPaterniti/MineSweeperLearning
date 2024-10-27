@@ -31,10 +31,10 @@ class Player:
         """Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
         raise NotImplementedError()
     
-    def plot_moves(self, game: Game, idx: int = 0):        
+    def plot_moves(self, game: Game, idx: int = 0, **plot_kwargs):        
         to_open, to_flag = self.get_moves(game[idx])
         if to_open is not None:
-            game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0])
+            game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0], **plot_kwargs)
 
 class ThresholdPlayer(Player):
     def __init__(self, model: MinesweeperModel, open_thresh: int=0.01, flag_thresh: int=0.99):
