@@ -79,11 +79,12 @@ class Game:
         return self.won.sum()/(1-self.active_games).sum()
     
     def move(self, to_open: np.ndarray = None, to_flag: np.ndarray = None) -> np.ndarray[bool]:
-        """To open and flag without altering the active games states inbetween"""
+        """Open or flag cells if the moves do not lose.
+        Returns bool array with shape (n) where false = losing move"""
         if to_open is None: to_open = np.zeros_like(self.mines[self.active_games])
-        else: self.last_opened[self.active_games] = to_open
         if to_flag is None: to_flag = np.zeros_like(to_open)
-        else: self.last_flagged[self.active_games] = to_flag
+        self.last_opened[self.active_games] = to_open
+        self.last_flagged[self.active_games] = to_flag
         correct_open = np.logical_not(np.any(self.mines[self.active_games]*to_open, axis=(1,2)))
         correct_flag = np.logical_not(np.any((1-self.mines[self.active_games])*to_flag, axis=(1,2)))
         correct = correct_open & correct_flag

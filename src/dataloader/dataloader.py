@@ -25,7 +25,6 @@ class MineSweeperDataset(Dataset):
         self.tot_mines = self.target.sum(axis=(-1,-2))   
         self.transform = transform
         self.weights = weights if weights is not None else np.ones_like(games)
-        self.rng = np.random.default_rng()
 
     def __len__(self):
         return self.target.shape[0]
