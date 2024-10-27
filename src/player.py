@@ -24,7 +24,7 @@ class Player:
         Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
         to_open, to_flag = self.get_moves(game)
         if to_open is not None:  
-            game.open_and_flag(to_open, to_flag)
+            game.move(to_open, to_flag)
         return to_open, to_flag
     
     def get_moves(self, game: Game) -> tuple[np.ndarray, np.ndarray]:

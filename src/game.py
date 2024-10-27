@@ -78,40 +78,21 @@ class Game:
     def win_rate(self):
         return self.won.sum()/(1-self.active_games).sum()
     
-    def open(self, cells: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]:
-        """Open cells in active games, return bool array (n) where False means a mine has been open
-        
-        :param cells: binary matrices (n,h,w)"""
-        correct = np.logical_not(np.any(self.mines[self.active_games]*cells, axis=(1,2)))
-        self.last_opened[self.active_games] = cells
-        self.open_cells[self.active_games] = np.bitwise_or(
-            self.open_cells[self.active_games], cells*(1-self.mines[self.active_games]))
-        self.won[self.active_games] =  correct*np.all(
-            self.open_cells[self.active_games]+self.mines[self.active_games], axis=(1,2))
-        if not _no_losing:
-            self.active_games[self.active_games] = correct
-            self.active_games[self.won] = False
-        return correct
-    
-    def flag(self, flags: np.ndarray, _no_losing: bool = False) -> np.ndarray[bool]: # wrong flag make you lose for training convenience
-        """Mark active games cells as flagged, return bool array (n) where False means a wrong flag has been placed
-
-        :param flags: binary ndarray (n,h,w) of the cells to flag
-        """
-        flags = flags*(1-self.open_cells[self.active_games])
-        self.last_flagged[self.active_games] = flags
-        self.flags[self.active_games] = np.bitwise_or(
-            self.flags[self.active_games], flags*self.mines[self.active_games])
-        correct = np.logical_not(np.any((1-self.mines[self.active_games])*flags, axis=(1,2)))
-        if not _no_losing: self.active_games[self.active_games] = correct
-        return correct
-    
-    def open_and_flag(self, to_open: np.ndarray, to_flag: np.ndarray) -> np.ndarray[bool]:
+    def move(self, to_open: np.ndarray = None, to_flag: np.ndarray = None) -> np.ndarray[bool]:
         """To open and flag without altering the active games states inbetween"""
-        correct_open = self.open(to_open, True)
-        correct_flag = self.flag(to_flag, True)
-        self.active_games[self.active_games] = correct_open & correct_flag
+        if to_open is None: to_open = np.zeros_like(self.mines[self.active_games])
+        else: self.last_opened[self.active_games] = to_open
+        if to_flag is None: to_flag = np.zeros_like(to_open)
+        else: self.last_flagged[self.active_games] = to_flag
+        correct_open = np.logical_not(np.any(self.mines[self.active_games]*to_open, axis=(1,2)))
+        correct_flag = np.logical_not(np.any((1-self.mines[self.active_games])*to_flag, axis=(1,2)))
+        correct = correct_open & correct_flag
+        self.active_games[self.active_games] = correct
+        self.open_cells[self.active_games] = np.bitwise_or(self.open_cells[self.active_games], to_open[correct])
+        self.flags[self.active_games] = np.bitwise_or(self.flags[self.active_games], to_flag[correct])
+        self.won = np.all(self.open_cells+self.mines, axis=(1,2))
         self.active_games[self.won] = False
+        return correct
 
     def open_zero(self):
         """Open a 0. Use it at the start of the game only. (It opens a minimum cell if no zeroes)"""
@@ -122,20 +103,20 @@ class Game:
         w_ids = random_zero%self.columns
         to_open = np.zeros_like(self.mines)
         to_open[np.arange(self.n), h_ids, w_ids] = 1 # open one zero per game
-        self.open(to_open)
+        self.move(to_open)
         return to_open
     
     def random_open(self, rate: float):
         """Open random cells (cannot open mines). Use it at the start of the game only"""
         to_open = self.rng.random(self.mines.shape) < rate
         to_open = to_open*(1-self.mines) # do not open mines
-        self.open(to_open)
+        self.move(to_open)
 
     def random_flags(self, rate: float):
         """Flag random mines. Use it at the start of the game only"""
         to_flag = self.rng.random(self.mines.shape) < rate
         to_flag = to_flag*self.mines # only flag mines
-        self.flag(to_flag)
+        self.move(to_flag=to_flag)
 
     def losing_moves(self) -> np.ndarray:
         """return (n,h,w) binary array of wrong openings (-1) or flags (+1) in the last actions"""
