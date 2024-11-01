@@ -1,5 +1,19 @@
+import numpy as np
 import torch
 from torch import nn
+
+class ConvBlock(nn.Module):
+
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.norm = nn.BatchNorm2d(in_channels)
+        self.conv = nn.Conv2d(in_channels, out_channels, 3, padding=1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        h = self.norm(x)
+        h = self.conv(h)
+        return self.relu(h)
 
 class ConvResBlock(nn.Module):
     """
@@ -39,6 +53,44 @@ class MaskedConv(nn.Conv2d):
             with torch.no_grad():
                 self.weight *= self.kernel_input_mask
         return super().forward(x)
+    
+class DownSample(nn.Module):
+
+    def __init__(self, channels: int, in_shape: tuple[int, int], out_shape: tuple[int, int],
+            use_conv: bool = False, out_channels: int = None):
+        super().__init__()
+        if not out_channels: out_channels = channels
+        in_shape, out_shape = np.array(in_shape), np.array(out_shape)
+        r = in_shape%out_shape
+        self.padding = (r > 1)*(out_shape - r + 1)//2
+        pad_shape = in_shape + 2*self.padding
+        self.stride = pad_shape//out_shape
+        self.kernel = self.stride + pad_shape%out_shape
+        if use_conv: self.module = nn.Conv2d(
+                channels, out_channels, tuple(self.kernel), tuple(self.stride), tuple(self.padding))
+        else:
+            self.module = nn.MaxPool2d(tuple(self.kernel), tuple(self.stride), tuple(self.padding))
+            
+    def forward(self, x):
+        return self.module(x)
+    
+class UpSample(nn.Module):
+    
+    def __init__(self,
+            in_channels: int, out_channels: int, in_shape: tuple[int, int], out_shape: tuple[int, int]):
+        super().__init__()
+        out_shape, in_shape = np.array(out_shape), np.array(in_shape)
+        r = out_shape%in_shape
+        self.padding = (r > 1)*(in_shape - r + 1)//2
+        pad_shape = out_shape + 2*self.padding
+        self.stride = pad_shape//in_shape
+        self.kernel = self.stride + pad_shape%in_shape
+        self.module = nn.ConvTranspose2d(
+                in_channels, out_channels, tuple(self.kernel), tuple(self.stride),
+                output_padding=tuple(self.padding))
+            
+    def forward(self, x):
+        return self.module(x)
 
 class PatchMLP(nn.Module):
     """
@@ -67,5 +119,68 @@ class PatchMLP(nn.Module):
         h = self.norm_in(h)
         h = self.relu(h)
         h = self.res_stack(h)
+        h = self.conv_out(h)
+        return self.out_activation(h)
+    
+
+class Unet(nn.Module):
+    def __init__(self,
+            input_shape: tuple[int, int, int], decoder_shapes: list[tuple[int, int, int]],
+            in_padding: int = 1, out_channels: int = 1, out_activation: nn.Module = None,
+            use_conv: bool = False, use_resblock: bool = False):
+        super().__init__()
+        current_shape = decoder_shapes[0]
+        self.in_block = nn.Sequential(
+            nn.Conv2d(input_shape[0], current_shape[0], 3, padding=in_padding),
+            nn.ReLU(),
+            ConvBlock(current_shape[0], current_shape[0])
+        )
+        self.conv_out = nn.Conv2d(current_shape[0], out_channels, 1)        
+        self.out_activation = out_activation if out_activation else nn.Identity()
+
+        self.encoder = []
+        for shape in decoder_shapes[1:]:
+            size = shape[1:]
+            channels = shape[0]
+            block = [DownSample(current_shape[0], current_shape[1:], size, use_conv)]
+            if use_resblock:
+                block.append(ConvResBlock(current_shape[0], channels))
+            else:
+                block.extend([
+                    ConvBlock(current_shape[0], channels),
+                    ConvBlock(channels, channels)
+                ])
+            self.encoder.append(nn.Sequential(*block))
+            current_shape = shape
+
+        self.decoder = []
+        self.upsamplers = []
+        for shape in reversed(decoder_shapes[:-1]):            
+            size = shape[1:]
+            channels = shape[0]
+            block = []
+            self.upsamplers.append(
+                UpSample(current_shape[0], channels, current_shape[1:], size))
+            if use_resblock:
+                block.append(ConvResBlock(channels*2, channels))
+            else:
+                block.extend([
+                    ConvBlock(channels*2, channels),
+                    ConvBlock(channels, channels)
+                ])
+                self.decoder.append(nn.Sequential(*block))
+                current_shape = shape
+
+    def forward(self, x):
+        h = self.in_block(x)
+        encodings = [h]
+        for block in self.encoder:
+            h = block(h)
+            encodings.append(h)
+        encodings.pop()
+        for upsampler, block in zip(self.upsamplers, self.decoder):
+            h = upsampler(h)
+            h = torch.cat((encodings.pop(), h), dim=1)
+            h = block(h)
         h = self.conv_out(h)
         return self.out_activation(h)

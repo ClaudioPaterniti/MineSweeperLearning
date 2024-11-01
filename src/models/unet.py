@@ -4,48 +4,52 @@ import json
 
 from torch import nn
 
-from .modules import PatchMLP
+from .modules import Unet
 from ..dataloader.dataloader import *
 from .base_model import MinesweeperModel
     
-class PatchMLPModel(MinesweeperModel):
+class UnetModel(MinesweeperModel):
     def __init__(self,
-            patch_radius: int,
-            layers: list[int] = [200]*4,
+            map_size: tuple[int, int],
+            decoder_shapes: list[tuple[int, int, int]],
+            use_conv: bool = False,            
+            use_resblock: bool = False,
             ordinal_encoding: bool = False,
             mine_rate_channel: bool = True,
             device: str = 'cpu'):
-        self.pad = patch_radius
-        self.kernel = 2*patch_radius+1
+       
         self.device = device
-        self.layers = layers
         self.ordinal_encoding = ordinal_encoding
         self.mine_rate_channel = mine_rate_channel
-        input_mask = torch.ones((self.kernel, self.kernel))
-        input_mask[patch_radius, patch_radius] = 0 # mask the value of the cell to predict
+        self.map_size = tuple(map_size)
+        self.decoder_shapes = decoder_shapes
+        self.use_conv = use_conv
+        self.use_resblock = use_resblock
         channels = 4 if ordinal_encoding else 12
         if mine_rate_channel:
             channels += 1
 
-        model = PatchMLP(
-            in_channels=channels,
+        model = Unet(
+            input_shape=(channels, map_size[0] + 1, map_size[1] + 1),
+            decoder_shapes=decoder_shapes,
+            in_padding=0,
             out_channels=1,
-            patch_size= self.kernel,
-            padding=0, # input already padded by transform
-            layer_units=layers,
-            input_mask = input_mask,
-            out_activation=nn.Sigmoid()
+            out_activation=nn.Sigmoid(),
+            use_conv=use_conv,
+            use_resblock=use_resblock
         )
         super().__init__(model)
         
-        self.transform = GameStateTransform(self.pad, self.ordinal_encoding, self.mine_rate_channel)
+        self.transform = GameStateTransform(1, self.ordinal_encoding, self.mine_rate_channel)
 
     def save(self, path: str):
         torch.save(self.model.state_dict(), path)
         filename, _ = os.path.splitext(path)
         meta = {
-            'patchRadius': self.pad,
-            'layers': self.layers,
+            'mapSize': self.map_size,
+            'decoderShapes': self.decoder_shapes,
+            'useConv': self.use_conv,
+            'useResblock': self.use_resblock,
             'ordinalEncoding': self.ordinal_encoding,
             'mineRateChannel': self.mine_rate_channel,
         }
@@ -57,9 +61,11 @@ class PatchMLPModel(MinesweeperModel):
         filename, _ = os.path.splitext(path)
         with open(filename+'.json', 'r') as f:
             meta: dict = json.load(f)
-        model = PatchMLPModel(
-            patch_radius=meta['patchRadius'],
-            layers=meta['layers'],
+        model = UnetModel(
+            map_size=meta['mapSize'],
+            decoder_shapes=meta['decoderShapes'],
+            use_conv=meta['useConv'],
+            use_resblock=meta['useResblock'],
             ordinal_encoding=meta.get('ordinalEncoding'),
             mine_rate_channel=meta.get('mineRateChannel'),
             device=device)
