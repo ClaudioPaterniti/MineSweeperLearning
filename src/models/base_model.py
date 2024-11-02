@@ -5,8 +5,9 @@ import numpy as np
 from torch import nn
 
 class MinesweeperModel:
-    def __init__(self, model: nn.Module):
+    def __init__(self, model: nn.Module, device: str):
         self.model = model
+        self.device = device
 
     def loss(self, pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
         squeezed = pred.view(pred.size(0), pred.size(2), pred.size(3))

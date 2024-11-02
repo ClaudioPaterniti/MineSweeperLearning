@@ -1,4 +1,5 @@
-dataset/
+data/
+weights/unet_16x30.pth
 
 .vscode
 __pycache__

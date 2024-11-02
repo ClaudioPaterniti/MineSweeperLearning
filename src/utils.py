@@ -36,7 +36,7 @@ def vanishing_colormap(cmap: Colormap, diverging: bool = False):
     color_array = cmap(range(ncolors))
 
     alpha = (np.linspace(0.0,1.0,ncolors) if not diverging
-             else np.abs(np.linspace(-1.0, 1.0, ncolors)))    
+             else np.abs(np.linspace(-1.0, 1.0, ncolors)))
 
     # change alpha values
     color_array[:,-1] = alpha
@@ -45,7 +45,7 @@ def vanishing_colormap(cmap: Colormap, diverging: bool = False):
     map_object = LinearSegmentedColormap.from_list(name=f'{cmap.name}_vanishing',colors=color_array)
     return map_object
 
-def pyplot_game(          
+def pyplot_game(
             state: np.ndarray, mine_probs: np.ndarray=None,
             highlighted: np.ndarray = None, print_zeros: bool = True,
             cmap :str = 'viridis', size: int = 0.35, init: bool = True,
@@ -61,7 +61,7 @@ def pyplot_game(
             if x < 0: return {'s': 'x',  'weight': 'bold', 'color': "r"}
             if x == 0: return {'s': x if print_zeros else '',  'weight': 'bold', 'color': "w"}
             if x < 9: return {'s': x,  'weight': 'bold', 'color': "w"}
-            if x == 9: return {'s': '{:.1f}'.format(p) if p else '', 'color': "black"}
+            if x == 9: return {'s': '{:.2f}'.format(p) if p else '', 'color': "black"}
             if x == 10: return {'s': '?',  'weight': 'bold', 'color': "r"}
 
         rows, columns = state.shape
@@ -69,7 +69,7 @@ def pyplot_game(
         mines = state == -1
         flags = state == 10
         # colors shifted of 0.2 to distinguish open cells
-        color = (mine_probs+0.2)*(1-open_cells) if mine_probs is not None\
+        color = (mine_probs + 0.2 + flags)*(1-open_cells) if mine_probs is not None\
               else (1-open_cells)*0.2 + flags + mines
         _ax = ax
         if not ax:

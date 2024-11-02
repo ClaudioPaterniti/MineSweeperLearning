@@ -17,7 +17,6 @@ class PatchMLPModel(MinesweeperModel):
             device: str = 'cpu'):
         self.pad = patch_radius
         self.kernel = 2*patch_radius+1
-        self.device = device
         self.layers = layers
         self.ordinal_encoding = ordinal_encoding
         self.mine_rate_channel = mine_rate_channel
@@ -36,7 +35,7 @@ class PatchMLPModel(MinesweeperModel):
             input_mask = input_mask,
             out_activation=nn.Sigmoid()
         )
-        super().__init__(model)
+        super().__init__(model, device)
         
         self.transform = GameStateTransform(self.pad, self.ordinal_encoding, self.mine_rate_channel)
 

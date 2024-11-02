@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-class ConvBlock(nn.Module):
+class Conv3x3Block(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -24,7 +24,9 @@ class ConvResBlock(nn.Module):
         kernel_size, padding = (1, 0) if kernel1x1 else (3, 1)
         self.conv_in = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding)
         self.conv_out = nn.Conv2d(out_channels, out_channels, kernel_size, padding=padding)
-        self.conv_skip = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding) if in_channels != out_channels else nn.Identity()
+        self.conv_skip = (
+            nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding)
+            if in_channels != out_channels else nn.Identity())
         self.norm_out =  nn.BatchNorm2d(out_channels)
         self.norm_in = nn.BatchNorm2d(in_channels)
         self.activation = nn.ReLU()
@@ -37,7 +39,7 @@ class ConvResBlock(nn.Module):
         h = self.conv_out(h)
         skip = self.conv_skip(x)
         return self.activation(h + skip)
-    
+
 class MaskedConv(nn.Conv2d):
     """
     Partial convolution with some input masked in each patch
@@ -53,7 +55,7 @@ class MaskedConv(nn.Conv2d):
             with torch.no_grad():
                 self.weight *= self.kernel_input_mask
         return super().forward(x)
-    
+
 class DownSample(nn.Module):
 
     def __init__(self, channels: int, in_shape: tuple[int, int], out_shape: tuple[int, int],
@@ -70,12 +72,12 @@ class DownSample(nn.Module):
                 channels, out_channels, tuple(self.kernel), tuple(self.stride), tuple(self.padding))
         else:
             self.module = nn.MaxPool2d(tuple(self.kernel), tuple(self.stride), tuple(self.padding))
-            
+
     def forward(self, x):
         return self.module(x)
-    
+
 class UpSample(nn.Module):
-    
+
     def __init__(self,
             in_channels: int, out_channels: int, in_shape: tuple[int, int], out_shape: tuple[int, int]):
         super().__init__()
@@ -88,7 +90,7 @@ class UpSample(nn.Module):
         self.module = nn.ConvTranspose2d(
                 in_channels, out_channels, tuple(self.kernel), tuple(self.stride),
                 output_padding=tuple(self.padding))
-            
+
     def forward(self, x):
         return self.module(x)
 
@@ -97,7 +99,7 @@ class PatchMLP(nn.Module):
     Apply a FCMLP patch by patch. Output channels only depends on the inputs of the patch around them
     """
     def __init__(self,
-                 in_channels, out_channels, patch_size: int, padding: int,
+                 in_channels: int, out_channels: int, patch_size: int, padding: int,
                  layer_units: list[int], input_mask: torch.Tensor = None,
                  out_activation: nn.Module = None):
         """:param input_mask: (h,w) binary mask to mask some input in the patch"""
@@ -121,41 +123,72 @@ class PatchMLP(nn.Module):
         h = self.res_stack(h)
         h = self.conv_out(h)
         return self.out_activation(h)
-    
+
+
+class ConvNet(nn.Module):
+    def __init__(self,
+                 in_channels: int, in_padding: int, in_kernel: int, out_channels: int,
+                 layers_channels: list[int], use_resblock: bool = True, out_activation: nn.Module = None):
+        """:param input_mask: (h,w) binary mask to mask some input in the patch"""
+        super().__init__()
+        current_channels = layers_channels[0]
+        self.conv_in = nn.Conv2d(in_channels, current_channels, in_kernel, 1, in_padding)
+        self.relu = nn.ReLU()
+        layers = []
+        for channels in layers_channels[1:]:
+            if use_resblock:
+                layers.append(ConvResBlock(current_channels, channels))
+            else:
+                layers.extend([
+                    Conv3x3Block(current_channels, channels),
+                    Conv3x3Block(channels, channels)
+                ])
+            current_channels = channels
+        self.layers = nn.Sequential(*layers)
+        self.conv_out = nn.Conv2d(current_channels, out_channels, 1)
+        self.out_activation = out_activation if out_activation else nn.Identity()
+
+    def forward(self, x):
+        h = self.conv_in(x)
+        h = self.relu(h)
+        h = self.layers(h)
+        h = self.conv_out(h)
+        return self.out_activation(h)
+
 
 class Unet(nn.Module):
     def __init__(self,
             input_shape: tuple[int, int, int], decoder_shapes: list[tuple[int, int, int]],
             in_padding: int = 1, out_channels: int = 1, out_activation: nn.Module = None,
-            use_conv: bool = False, use_resblock: bool = False):
+            conv_downsample: bool = False, use_resblock: bool = False):
         super().__init__()
         current_shape = decoder_shapes[0]
         self.in_block = nn.Sequential(
             nn.Conv2d(input_shape[0], current_shape[0], 3, padding=in_padding),
             nn.ReLU(),
-            ConvBlock(current_shape[0], current_shape[0])
+            Conv3x3Block(current_shape[0], current_shape[0])
         )
-        self.conv_out = nn.Conv2d(current_shape[0], out_channels, 1)        
+        self.conv_out = nn.Conv2d(current_shape[0], out_channels, 1)
         self.out_activation = out_activation if out_activation else nn.Identity()
 
-        self.encoder = []
+        self.encoder = nn.ModuleList()
         for shape in decoder_shapes[1:]:
             size = shape[1:]
             channels = shape[0]
-            block = [DownSample(current_shape[0], current_shape[1:], size, use_conv)]
+            block = [DownSample(current_shape[0], current_shape[1:], size, conv_downsample)]
             if use_resblock:
                 block.append(ConvResBlock(current_shape[0], channels))
             else:
                 block.extend([
-                    ConvBlock(current_shape[0], channels),
-                    ConvBlock(channels, channels)
+                    Conv3x3Block(current_shape[0], channels),
+                    Conv3x3Block(channels, channels)
                 ])
             self.encoder.append(nn.Sequential(*block))
             current_shape = shape
 
-        self.decoder = []
-        self.upsamplers = []
-        for shape in reversed(decoder_shapes[:-1]):            
+        self.decoder = nn.ModuleList()
+        self.upsamplers = nn.ModuleList()
+        for shape in reversed(decoder_shapes[:-1]):
             size = shape[1:]
             channels = shape[0]
             block = []
@@ -165,8 +198,8 @@ class Unet(nn.Module):
                 block.append(ConvResBlock(channels*2, channels))
             else:
                 block.extend([
-                    ConvBlock(channels*2, channels),
-                    ConvBlock(channels, channels)
+                    Conv3x3Block(channels*2, channels),
+                    Conv3x3Block(channels, channels)
                 ])
                 self.decoder.append(nn.Sequential(*block))
                 current_shape = shape

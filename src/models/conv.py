@@ -4,42 +4,41 @@ import json
 
 from torch import nn
 
-from .modules import Unet
+from .modules import ConvNet
 from ..dataloader.dataloader import *
 from .base_model import MinesweeperModel
 
-class UnetModel(MinesweeperModel):
+class ConvModel(MinesweeperModel):
     def __init__(self,
-            map_size: tuple[int, int],
-            decoder_shapes: list[tuple[int, int, int]],
-            conv_downsample: bool = False,
-            use_resblock: bool = False,
+            in_kernel_radius: int,
+            layers_channels: list[int],
+            use_resblock: bool = True,
             ordinal_encoding: bool = False,
             mine_rate_channel: bool = True,
             device: str = 'cpu'):
 
         self.ordinal_encoding = ordinal_encoding
         self.mine_rate_channel = mine_rate_channel
-        self.map_size = tuple(map_size)
-        self.decoder_shapes = decoder_shapes
-        self.conv_downsample = conv_downsample
+        self.in_kernel = 2*in_kernel_radius + 1
+        self.layers_channels = layers_channels
         self.use_resblock = use_resblock
         channels = 4 if ordinal_encoding else 12
         if mine_rate_channel:
             channels += 1
 
-        model = Unet(
-            input_shape=(channels, map_size[0] + 1, map_size[1] + 1),
-            decoder_shapes=decoder_shapes,
-            in_padding=0,
+        model = ConvNet(
+            in_channels= channels,
+            in_padding = 0,
+            in_kernel=self.in_kernel,
             out_channels=1,
-            out_activation=nn.Sigmoid(),
-            conv_downsample=conv_downsample,
-            use_resblock=use_resblock
+            layers_channels=layers_channels,
+            use_resblock=use_resblock,
+            out_activation=nn.Sigmoid()
         )
         super().__init__(model, device)
 
-        self.transform = GameStateTransform(1, self.ordinal_encoding, self.mine_rate_channel)
+        self.transform = GameStateTransform(
+            in_kernel_radius, self.ordinal_encoding, self.mine_rate_channel)
 
     def save(self, path: str):
         torch.save(self.model.state_dict(), path)
@@ -47,7 +46,7 @@ class UnetModel(MinesweeperModel):
         meta = {
             'mapSize': self.map_size,
             'decoderShapes': self.decoder_shapes,
-            'useConv': self.conv_downsample,
+            'useConv': self.use_conv,
             'useResblock': self.use_resblock,
             'ordinalEncoding': self.ordinal_encoding,
             'mineRateChannel': self.mine_rate_channel,

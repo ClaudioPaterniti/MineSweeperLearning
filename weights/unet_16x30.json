@@ -1,0 +1,32 @@
+{
+    "mapSize": [
+        16,
+        30
+    ],
+    "decoderShapes": [
+        [
+            128,
+            16,
+            30
+        ],
+        [
+            256,
+            8,
+            15
+        ],
+        [
+            512,
+            4,
+            7
+        ],
+        [
+            1024,
+            2,
+            3
+        ]
+    ],
+    "useConv": false,
+    "useResblock": false,
+    "ordinalEncoding": false,
+    "mineRateChannel": true
+}
