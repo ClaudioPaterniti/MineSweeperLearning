@@ -145,7 +145,9 @@ class ConvNet(nn.Module):
                 ])
             current_channels = channels
         self.layers = nn.Sequential(*layers)
-        self.conv_out = nn.Conv2d(current_channels, out_channels, 1)
+        self.conv_out = (
+            nn.Conv2d(current_channels, out_channels, 1) if current_channels != out_channels
+            else nn.Identity())
         self.out_activation = out_activation if out_activation else nn.Identity()
 
     def forward(self, x):

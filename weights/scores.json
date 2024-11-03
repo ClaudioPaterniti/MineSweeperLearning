@@ -1,0 +1,13 @@
+{
+    "n": 100,
+    "winRates": {
+        "weights/conv_3x3_64.pth": 0.52,
+        "weights/conv_3x3_128.pth": 0.43,
+        "weights/conv_5x5_64.pth": 0.44,
+        "weights/conv_5x5_128.pth": 0.4,
+        "weights/conv_7x7_64.pth": 0.43,
+        "weights/patch_mlp_7x7_512.pth": 0.41,
+        "weights/patch_mlp_7x7_1024.pth": 0.35,
+        "weights/unet_16x30_64.pth": 0.39
+    }
+}

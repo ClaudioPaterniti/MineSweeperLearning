@@ -12,22 +12,22 @@ class MinesweeperModel:
     def loss(self, pred: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
         squeezed = pred.view(pred.size(0), pred.size(2), pred.size(3))
         return nn.functional.binary_cross_entropy(squeezed, target, weight=weights)
-    
+
     def transform(self,
             state: np.ndarray,
             tot_mines: np.ndarray = None,
             mines: np.ndarray = None,
             weights: np.ndarray = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Prepare input for the model
-        
+
         :param state: (n,w,h) with games state
         :param tot_mines: (n) with tot number of mines in the game
         :param mines: binary (n,w,h) with the mines positions
         :param weights: (n,w,h) with the weights for the cell loss
-        
+
         :returns: (x, y, w) = model input, target and loss weights"""
         raise NotImplementedError()
-    
+
     def __call__(self,
             game_state: np.ndarray, tot_mines: np.ndarray= None,
             batch_size: int = 1000, **kwargs) -> np.ndarray:
@@ -42,7 +42,7 @@ class MinesweeperModel:
                 x = x.to(self.device)
                 out.append(self.model(x).view(state.shape).detach().cpu().numpy())
         return np.concatenate(out)
-    
+
     def train(self, dataloader, optimizer) -> float:
         """returns the mean batch loss"""
         self.model.train()
@@ -61,7 +61,7 @@ class MinesweeperModel:
             optimizer.zero_grad()
 
             train_loss += loss.item()
-            
+
         return train_loss / len(dataloader)
 
     def test(self, dataloader) -> float:
@@ -76,3 +76,12 @@ class MinesweeperModel:
                 test_loss += self.loss(pred, y, w).item()
 
         return test_loss / len(dataloader)
+
+    def save(self, path: str):
+        """Save model to file"""
+        raise NotImplementedError()
+
+    @staticmethod
+    def load(path: str, device: str):
+        """Load model from file"""
+        raise NotImplementedError()
