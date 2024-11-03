@@ -17,9 +17,9 @@ class ConvModel(MinesweeperModel):
             mine_rate_channel: bool = True,
             device: str = 'cpu'):
 
+        self.in_kernel_radius = in_kernel_radius
         self.ordinal_encoding = ordinal_encoding
         self.mine_rate_channel = mine_rate_channel
-        self.in_kernel = 2*in_kernel_radius + 1
         self.layers_channels = layers_channels
         self.use_resblock = use_resblock
         channels = 4 if ordinal_encoding else 12
@@ -29,7 +29,7 @@ class ConvModel(MinesweeperModel):
         model = ConvNet(
             in_channels= channels,
             in_padding = 0,
-            in_kernel=self.in_kernel,
+            in_kernel=2*in_kernel_radius + 1,
             out_channels=1,
             layers_channels=layers_channels,
             use_resblock=use_resblock,
@@ -44,9 +44,8 @@ class ConvModel(MinesweeperModel):
         torch.save(self.model.state_dict(), path)
         filename, _ = os.path.splitext(path)
         meta = {
-            'mapSize': self.map_size,
-            'decoderShapes': self.decoder_shapes,
-            'useConv': self.use_conv,
+            'inKernelRadius': self.in_kernel_radius,
+            'layersChannels': self.layers_channels,
             'useResblock': self.use_resblock,
             'ordinalEncoding': self.ordinal_encoding,
             'mineRateChannel': self.mine_rate_channel,
@@ -59,10 +58,9 @@ class ConvModel(MinesweeperModel):
         filename, _ = os.path.splitext(path)
         with open(filename+'.json', 'r') as f:
             meta: dict = json.load(f)
-        model = UnetModel(
-            map_size=tuple(meta['mapSize']),
-            decoder_shapes=[tuple(t) for t in meta['decoderShapes']],
-            conv_downsample=meta['useConv'],
+        model = ConvModel(
+            in_kernel_radius=meta['inKernelRadius'],
+            layers_channels=meta['layersChannels'],
             use_resblock=meta['useResblock'],
             ordinal_encoding=meta.get('ordinalEncoding'),
             mine_rate_channel=meta.get('mineRateChannel'),
