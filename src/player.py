@@ -26,18 +26,31 @@ class Player:
         if not np.any(game.active_games):
             print('no active games')
             return None, None
-        to_open, to_flag = self.get_moves(game)
+        to_open, to_flag = self.get_moves(game.game_state(True), game.mines_n[game.active_games])
         game.move(to_open, to_flag)
         return to_open, to_flag
 
-    def get_moves(self, game: Game, active_only: bool = True) -> tuple[np.ndarray, np.ndarray]:
-        """Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
+    def get_game_moves(self, game: Game) -> tuple[np.ndarray, np.ndarray]:
+        to_open, to_flag = self.get_moves(game.game_state(), game.mines_n)
+        return to_open, to_flag
+
+    def get_moves(self, state: np.ndarray, tot_mines: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """
+        :param state: (n,w,h) with games state
+        :param tot_mines: (n) with tot number of mines in the game
+        Returns two binary (n,h,w) arrays with respectively the open and flagged cells"""
         raise NotImplementedError()
 
-    def plot_moves(self, game: Game, idx: int = 0, **plot_kwargs):
-        to_open, to_flag = self.get_moves(game[idx], False)
-        if to_open is not None:
-            game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0], **plot_kwargs)
+    def plot_game_moves(self, game: Game, idx: int = 0, **plot_kwargs):
+        to_open, to_flag = self.get_game_moves(game[idx])
+        game.pyplot_game(idx, highlighted=to_flag[0] - to_open[0], **plot_kwargs)
+
+    def plot_moves(self, state: np.ndarray, tot_mines: int, **plot_kwargs):
+        """
+        :param state: (w,h) single game state
+        :param tot_mines: int with tot number of mines in the game"""
+        to_open, to_flag = self.get_moves(np.expand_dims(state, 0), np.expand_dims(tot_mines, 0))
+        pyplot_game(state, highlighted=to_flag[0] - to_open[0], **plot_kwargs)
 
 class ThresholdPlayer(Player):
     def __init__(self, model: MinesweeperModel, open_thresh: int=0.01, flag_thresh: int=0.99):
@@ -46,10 +59,9 @@ class ThresholdPlayer(Player):
         self.open_tresh = open_thresh
         self.flag_tresh = flag_thresh
 
-    def get_moves(self, game: Game, active_only: bool = True) -> tuple[np.ndarray, np.ndarray]:
-        mask = game.active_games if active_only else np.full_like(game.active_games, True)
-        p = self.model(game.game_state(active_only), game.mines_n[mask])
-        known = game.open_cells[mask] + game.flags[mask]
+    def get_moves(self, state: np.ndarray, tot_mines: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        p = self.model(state, tot_mines)
+        known = (state != 9).view(np.int8)
         p_for_min = p + known # set known cells > 1 to get meaningful low probabilties
         p_for_max = p - known # set known cells < 0 to get meaningful high probabilities
         to_open = p_for_min < self.open_tresh # open cells below open threshold
@@ -57,8 +69,8 @@ class ThresholdPlayer(Player):
         no_moves = np.logical_not(np.any(to_open, axis=(1,2)) | np.any(to_flag, axis=(1,2))) # games without new open or flags
         if np.any(no_moves):
             idxs = p_for_min.reshape(p.shape[0], -1)[no_moves].argmin(axis=1)
-            h_ids = idxs//game.columns
-            w_ids = idxs%game.columns
+            h_ids = idxs//state.shape[2]
+            w_ids = idxs%state.shape[2]
             to_open[no_moves, h_ids, w_ids] = 1 # open the cell with minimum
         return to_open.view(np.int8), to_flag.view(np.int8)
 
