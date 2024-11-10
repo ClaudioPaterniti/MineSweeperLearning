@@ -52,7 +52,7 @@ class Game:
                 grids += pad[:, 1+i:self.rows+1+i , 1+j:self.columns+1+j] # the number of a cell is the sum of the nighbour mines
         grids[self.mines.astype(bool)] = -1
         return grids
-    
+
     def reset(self):
         self.open_cells.fill(0)
         self.flags.fill(0)
@@ -60,7 +60,7 @@ class Game:
         self.won.fill(False)
         self.last_opened.fill(0)
         self.last_flagged.fill(0)
-    
+
     def game_state(self, active_only: bool = False):
         """return the games with:
         0-8: open cell with corresponding minesweeper number,
@@ -68,16 +68,16 @@ class Game:
         10: flag"""
         state = self.numbers*self.open_cells + 9*(1-self.open_cells) + self.flags
         return state[self.active_games] if active_only else state
-    
+
     def scores(self, final_only: bool = False):
         """return percentage of non-mine cells opened"""
         mask = np.logical_not(self.active_games) if final_only else np.full(self.n, True)
         to_open = self.size - self.mines_n
         return self.open_cells[mask].sum(axis=(1,2))/to_open
-    
+
     def win_rate(self):
         return self.won.sum()/(1-self.active_games).sum()
-    
+
     def move(self, to_open: np.ndarray = None, to_flag: np.ndarray = None) -> np.ndarray[bool]:
         """Open or flag cells if the moves do not lose.
         Returns bool array with shape (n) where false = losing move"""
@@ -95,7 +95,7 @@ class Game:
         self.active_games[self.won] = False
         return correct
 
-    def open_zero(self):
+    def open_zero(self) -> np.ndarray[int]:
         """Open a 0. Use it at the start of the game only. (It opens a minimum cell if no zeroes)"""
         mins = (self.numbers + 10*self.mines).min(axis=(1,2)).reshape(self.n, 1 , 1)
         weighted_zeros = self.rng.random(self.mines.shape)*(self.numbers == mins)
@@ -106,18 +106,20 @@ class Game:
         to_open[np.arange(self.n), h_ids, w_ids] = 1 # open one zero per game
         self.move(to_open)
         return to_open
-    
-    def random_open(self, rate: float):
+
+    def random_open(self, rate: float) -> np.ndarray[int]:
         """Open random cells (cannot open mines). Use it at the start of the game only"""
         to_open = self.rng.random(self.mines.shape) < rate
         to_open = to_open*(1-self.mines) # do not open mines
         self.move(to_open)
+        return to_open
 
-    def random_flags(self, rate: float):
+    def random_flags(self, rate: float) -> np.ndarray[int]:
         """Flag random mines. Use it at the start of the game only"""
         to_flag = self.rng.random(self.mines.shape) < rate
         to_flag = to_flag*self.mines # only flag mines
         self.move(to_flag=to_flag)
+        return to_flag
 
     def losing_moves(self) -> np.ndarray:
         """return (n,h,w) binary array of wrong openings (-1) or flags (+1) in the last actions"""
@@ -140,7 +142,7 @@ class Game:
         elif highlighted == 'last_moves':
             plot_kwargs['highlighted'] = self.last_flagged[idx] - self.last_opened[idx]
         return utils.pyplot_game(**plot_kwargs)
-    
+
     def as_dataset(self) -> np.ndarray:
         """returns the current state as an np.int8 ndarray (n,w,h) with:
          - -1: mine
@@ -151,4 +153,3 @@ class Game:
                 + 9*(1 - self.open_cells - self.mines)
                 - self.mines
                 + 11*self.flags)
-        

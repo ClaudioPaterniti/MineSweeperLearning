@@ -4,14 +4,31 @@ import math
 import numpy as np
 import torch
 
+from argparse import ArgumentParser
+from datetime import datetime
+
 from src.game import Game
-from src.models.patch_mlp import PatchMLPModel
+from src.models.conv import ConvModel
 from src.player import ThresholdPlayer
+from src.utils import sample
+
 
 if __name__ == '__main__':
-    size = int(sys.argv[1])
-    path = sys.argv[2] if len(sys.argv) > 2 else 'dataset/dataset.npy'
-    print(f'size: {size}')
+    parser = ArgumentParser()
+    parser.add_argument('n', type=int)
+    parser.add_argument('-o', required=False, default= None)
+    parser.add_argument('--fixed_mines', action='store_true')
+    args = parser.parse_args()
+
+    if not args.o:
+        args.o = f'data/dataset_{datetime.now().strftime("%Y%m%d%H%M%S")}.npy'
+
+    print(f'size: {args.n}')
+
+    if args.fixed_mines:
+        mines_n_gen = lambda n: 99
+    else:
+        mines_n_gen = lambda n: rng.normal(99, 30, n).astype(int).clip(40, 160)
 
     device = (
         "cuda"
@@ -22,51 +39,42 @@ if __name__ == '__main__':
     )
     print(device)
 
-    model = PatchMLPModel.load('weights/patch_mlp_7x7_512_halving_mr.pth', device)
-    player = ThresholdPlayer(model, 0.01, 0.95)
+    model = ConvModel.load('weights/conv_3x3_64.pth', device)
+    player = ThresholdPlayer(model, 0.01, 0.99)
 
     data = []
-    samples_n = 0
     rng = np.random.default_rng()
 
-    for i in range(5): # 1/4 random
-        n = math.ceil(size/20)
+    size = int(math.ceil(args.n*1.2))
+    size = size + 15 - size%15
+
+    for i in range(5): # 1/3 random
+        n = size//15
         print(f'Generating {n} random open samples with {0.1*(i+1)}')
-        games = Game(16, 30, rng.normal(99, 30, n).astype(int).clip(40, 160), n)
+        games = Game(16, 30, mines_n_gen(n), n)
         games.random_open(0.1*(i+1))
         games.random_flags(0.1*(i+1))
-        samples_n += games.n
         data.append(games.as_dataset())
 
-    for i in range(5): # 1/4 playing from random
-        n = math.ceil(size/20)
-        print(f'Generating {n} samples playing {i+1} turns from random')
-        games = Game(16, 30, rng.normal(99, 30, n).astype(int).clip(40, 160), n)
+    for i in range(5): # 1/3 playing from random
+        n = size//15
+        print(f'Generating {n} samples playing {2*(i+1)} turns from random')
+        games = Game(16, 30, mines_n_gen(n), n)
         games.random_open(0.1)
-        player.play(games, i+1)
-        samples_n += games.n
-        data.append(games.as_dataset())
+        player.play(games, 2*(i+1))
+        not_won = np.logical_not(games.won)
+        data.append(games.as_dataset()[not_won])
 
-    for i in range(5): # 1/4 playing from zero
-        n = math.ceil(size/20)
-        print(f'Generating {n} samples playing {6+i} turns from two zeros')
-        games = Game(16, 30, rng.normal(99, 30, n).astype(int).clip(40, 160), n)
+    for i in range(5): # 1/3 playing from zero
+        n = size//15
+        print(f'Generating {n} samples playing {5*(i+1)} turns from two zeros')
+        games = Game(16, 30, mines_n_gen(n), n)
         games.open_zero()
-        games.open_zero()
-        player.play(games, 6+i)
-        samples_n += games.n
-        data.append(games.as_dataset())
-
-    while samples_n < size: # 1/4 lost
-        n = min(math.ceil((size - samples_n)*1.5), 10_000)
-        print(f'Generating {n} samples from lost games')
-        games = Game(16, 30, rng.normal(99, 30, n).astype(int).clip(40, 160), n)
-        games.open_zero()
-        player.play(games)
-        lost = games.as_dataset()[np.logical_not(games.won)]
-        data.append(lost[:size - samples_n])
-        samples_n += lost.shape[0]
+        player.play(games, 5*(i+1))
+        not_won = np.logical_not(games.won)
+        data.append(games.as_dataset()[not_won])
 
     dataset = np.concatenate(data, axis=0)
-    print(f'Saving {dataset.shape[0]} samples to {path}')
-    np.save(path, np.concatenate(data))
+    dataset = sample(dataset, args.n)
+    print(f'Saving {dataset.shape[0]} samples to {args.o}')
+    np.save(args.o, dataset)
